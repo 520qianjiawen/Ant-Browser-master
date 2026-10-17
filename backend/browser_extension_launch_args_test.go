@@ -1,0 +1,16 @@
+package backend
+
+import (
+	"slices"
+	"testing"
+)
+
+func TestBuildBrowserLaunchArgsDoesNotLoadExtensionsFromStartupFlags(t *testing.T) {
+	args := buildBrowserLaunchArgs("profile-dir", 9222, "direct://", nil, nil, nil, nil, false)
+	if slices.Contains(args, "--load-extension") || slices.Contains(args, "--disable-extensions-except") {
+		t.Fatalf("args = %#v, production extensions must not be loaded from startup flags", args)
+	}
+	if !slices.Contains(args, "--extension-mime-request-handling=always-prompt-for-install") {
+		t.Fatalf("args = %#v, want --extension-mime-request-handling=always-prompt-for-install", args)
+	}
+}
