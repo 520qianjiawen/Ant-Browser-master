@@ -65,24 +65,25 @@ export function Sidebar() {
         sidebarCollapsed ? (isMac ? "w-20" : "w-16") : "w-60",
       )}
     >
-      {/* Logo */}
+      {/* macOS 专属红绿灯保留区 */}
+      {isMac && <div className="h-8 w-full wails-drag flex-shrink-0" />}
+
+      {/* 品牌与 Logo 区域 */}
       <div
         className={clsx(
-          "h-14 flex items-center border-b border-[var(--color-border-muted)] select-none wails-drag",
+          "flex items-center border-b border-[var(--color-border-muted)] select-none wails-drag",
           sidebarCollapsed
-            ? "justify-center px-2"
-            : isMac
-            ? "pl-20 pr-4"
-            : "px-5",
+            ? clsx("justify-center", isMac ? "h-12" : "h-14")
+            : clsx("px-3.5 gap-2.5", isMac ? "h-12" : "h-14"),
         )}
       >
         {!sidebarCollapsed ? (
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-[var(--color-accent)] flex items-center justify-center">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-[30px] h-[30px] rounded-lg overflow-hidden flex-shrink-0 bg-white shadow-sm border border-[var(--color-border-muted)] flex items-center justify-center p-0.5">
               <img
                 src={logoImage}
                 alt="应用Logo"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 onError={(e) => {
                   // 图片加载失败时显示首字母
                   e.currentTarget.style.display = "none";
@@ -93,18 +94,26 @@ export function Sidebar() {
                 {projectConfig.shortName.charAt(0)}
               </span>
             </div>
-            <h2 className="text-base font-semibold text-[var(--color-text-primary)] tracking-tight truncate">
-              {projectConfig.name}
-            </h2>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-[var(--color-text-primary)] tracking-tight truncate leading-none">
+                  {projectConfig.name}
+                </h2>
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--color-accent-muted)] text-[var(--color-accent)] leading-none select-none">
+                  v1.8
+                </span>
+              </div>
+            </div>
           </div>
-        ) : isMac ? (
-          <div className="w-8 h-8" />
         ) : (
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-[var(--color-accent)] flex items-center justify-center">
+          <div
+            className="w-[30px] h-[30px] rounded-lg overflow-hidden flex-shrink-0 bg-white shadow-sm border border-[var(--color-border-muted)] flex items-center justify-center p-0.5"
+            title={projectConfig.name}
+          >
             <img
               src={logoImage}
               alt="应用Logo"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               onError={(e) => {
                 // 图片加载失败时显示首字母
                 e.currentTarget.style.display = "none";

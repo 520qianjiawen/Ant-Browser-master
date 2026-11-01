@@ -7,6 +7,8 @@ import { GetAppConfig } from '../../wailsjs/go/main/App'
 import { notificationVisuals } from '../notifications/presentation'
 import { GoogleAccountDropdown } from './GoogleAccountDropdown'
 
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/i.test(navigator.platform || navigator.userAgent);
+
 function NotificationDropdown({
   notifications,
   onMarkAsRead,
@@ -167,17 +169,23 @@ export function Topbar() {
   }, [])
 
   return (
-    <header className="h-14 bg-[var(--color-bg-surface)] border-b border-[var(--color-border-default)] px-4 flex items-center justify-between gap-4 select-none wails-drag">
-      <div className="flex-1 h-full wails-drag" />
-
-      {appVersion && (
-        <span className="text-xs font-medium text-[var(--color-text-muted)] wails-no-drag select-none">
-          v{appVersion}
-        </span>
+    <header
+      className={clsx(
+        "bg-[var(--color-bg-surface)] border-b border-[var(--color-border-default)] px-4 select-none wails-drag flex flex-col justify-end transition-all",
+        isMac ? "h-20 pb-2" : "h-14 justify-center",
       )}
+    >
+      <div className="flex items-center justify-between gap-4 w-full">
+        <div className="flex-1 h-full wails-drag" />
 
-      {/* 右侧操作 */}
-      <div className="flex items-center gap-1 wails-no-drag">
+        {appVersion && (
+          <span className="text-xs font-medium text-[var(--color-text-muted)] wails-no-drag select-none">
+            v{appVersion}
+          </span>
+        )}
+
+        {/* 右侧操作 */}
+        <div className="flex items-center gap-1 wails-no-drag">
         {/* 通知按钮 */}
         <div className="relative" ref={dropdownRef}>
           <button
@@ -227,6 +235,7 @@ export function Topbar() {
         <div className="w-px h-5 bg-[var(--color-border-default)] mx-1.5" />
 
         <GoogleAccountDropdown />
+      </div>
       </div>
     </header>
   )
