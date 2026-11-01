@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { ThemeType, DEFAULT_THEME } from './types'
+import { WindowSetDarkTheme, WindowSetLightTheme } from '../../wailsjs/runtime/runtime'
 
 interface ThemeContextValue {
   theme: ThemeType
@@ -30,9 +31,18 @@ export function ThemeProvider({ children, defaultTheme = DEFAULT_THEME }: ThemeP
     localStorage.setItem(THEME_STORAGE_KEY, newTheme)
   }
 
-  // 应用主题到 document
+  // 应用主题到 document 并同步原生窗口
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
+    try {
+      if (theme === 'dark') {
+        WindowSetDarkTheme()
+      } else {
+        WindowSetLightTheme()
+      }
+    } catch {
+      // 忽略非桌面端/预览环境报错
+    }
   }, [theme])
 
   return (

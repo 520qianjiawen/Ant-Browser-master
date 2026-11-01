@@ -806,6 +806,14 @@ export function StopInstance(arg1) {
   return window['go']['main']['App']['StopInstance'](arg1);
 }
 
+export function SunBrowserKernelDownload(arg1) {
+  return window['go']['main']['App']['SunBrowserKernelDownload'](arg1);
+}
+
+export function SunBrowserKernelInfo(arg1) {
+  return window['go']['main']['App']['SunBrowserKernelInfo'](arg1);
+}
+
 export function TestProxyConnectivity(arg1, arg2) {
   return window['go']['main']['App']['TestProxyConnectivity'](arg1, arg2);
 }

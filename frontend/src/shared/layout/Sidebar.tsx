@@ -48,6 +48,8 @@ const iconMap: Record<string, LucideIcon> = {
   Tag,
 };
 
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPod|iPad/i.test(navigator.platform || navigator.userAgent);
+
 function getIcon(iconName: string): LucideIcon {
   return iconMap[iconName] || LayoutDashboard;
 }
@@ -60,18 +62,22 @@ export function Sidebar() {
     <aside
       className={clsx(
         "bg-[var(--color-bg-surface)] flex flex-col transition-all duration-300 border-r border-[var(--color-border-default)]",
-        sidebarCollapsed ? "w-16" : "w-60",
+        sidebarCollapsed ? (isMac ? "w-20" : "w-16") : "w-60",
       )}
     >
       {/* Logo */}
       <div
         className={clsx(
-          "h-14 flex items-center border-b border-[var(--color-border-muted)]",
-          sidebarCollapsed ? "justify-center px-2" : "px-5",
+          "h-14 flex items-center border-b border-[var(--color-border-muted)] select-none wails-drag",
+          sidebarCollapsed
+            ? "justify-center px-2"
+            : isMac
+            ? "pl-20 pr-4"
+            : "px-5",
         )}
       >
         {!sidebarCollapsed ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-[var(--color-accent)] flex items-center justify-center">
               <img
                 src={logoImage}
@@ -91,6 +97,8 @@ export function Sidebar() {
               {projectConfig.name}
             </h2>
           </div>
+        ) : isMac ? (
+          <div className="w-8 h-8" />
         ) : (
           <div className="w-8 h-8 rounded-full overflow-hidden bg-[var(--color-accent)] flex items-center justify-center">
             <img

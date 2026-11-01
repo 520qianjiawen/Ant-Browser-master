@@ -696,6 +696,8 @@ export namespace backend {
 	    profileId: string;
 	    runtime: BrowserFingerprintRuntimeInfo;
 	    expected: BrowserFingerprintExpectedInfo;
+	    engine?: string;
+	    unsupportedFields?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new BrowserFingerprintCheckResult(source);
@@ -706,6 +708,8 @@ export namespace backend {
 	        this.profileId = source["profileId"];
 	        this.runtime = this.convertValues(source["runtime"], BrowserFingerprintRuntimeInfo);
 	        this.expected = this.convertValues(source["expected"], BrowserFingerprintExpectedInfo);
+	        this.engine = source["engine"];
+	        this.unsupportedFields = source["unsupportedFields"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1283,6 +1287,32 @@ export namespace backend {
 	        this.sizeMB = source["sizeMB"];
 	        this.createdAt = source["createdAt"];
 	        this.filePath = source["filePath"];
+	    }
+	}
+	export class SunBrowserKernelInfoResult {
+	    available: boolean;
+	    version: string;
+	    downloadUrl: string;
+	    fileMd5: string;
+	    sizeMb: string;
+	    system: string;
+	    coreName: string;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SunBrowserKernelInfoResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.available = source["available"];
+	        this.version = source["version"];
+	        this.downloadUrl = source["downloadUrl"];
+	        this.fileMd5 = source["fileMd5"];
+	        this.sizeMb = source["sizeMb"];
+	        this.system = source["system"];
+	        this.coreName = source["coreName"];
+	        this.message = source["message"];
 	    }
 	}
 

@@ -412,6 +412,10 @@ export function StatusInstance(arg1:string):Promise<browser.Profile>;
 
 export function StopInstance(arg1:string):Promise<browser.Profile>;
 
+export function SunBrowserKernelDownload(arg1:string):Promise<void>;
+
+export function SunBrowserKernelInfo(arg1:string):Promise<backend.SunBrowserKernelInfoResult>;
+
 export function TestProxyConnectivity(arg1:string,arg2:string):Promise<backend.ProxyTestResult>;
 
 export function TestProxyRealConnectivity(arg1:string):Promise<backend.ProxyTestResult>;

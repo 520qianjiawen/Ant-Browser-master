@@ -5,6 +5,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Wails 窗口拖拽区域支持 */
+.wails-drag {
+  --wails-draggable: drag;
+  -webkit-app-region: drag;
+}
+
+.wails-no-drag {
+  --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
+}
+
 * {
   margin: 0;
   padding: 0;

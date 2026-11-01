@@ -20,6 +20,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -364,6 +365,16 @@ func main() {
 			// Expose a real window icon to Linux desktop environments.
 			Icon:             linuxAppIcon,
 			WebviewGpuPolicy: linux.WebviewGpuPolicyNever,
+		},
+		Mac: &mac.Options{
+			TitleBar:             mac.TitleBarHidden(),
+			WebviewIsTransparent: true,
+			WindowIsTranslucent:  false,
+			About: &mac.AboutInfo{
+				Title:   cfg.App.Name,
+				Message: "Ant Browser",
+				Icon:    linuxAppIcon,
+			},
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent:                false,

@@ -167,17 +167,17 @@ export function Topbar() {
   }, [])
 
   return (
-    <header className="h-14 bg-[var(--color-bg-surface)] border-b border-[var(--color-border-default)] px-4 flex items-center justify-between gap-4">
-      <div className="flex-1" />
+    <header className="h-14 bg-[var(--color-bg-surface)] border-b border-[var(--color-border-default)] px-4 flex items-center justify-between gap-4 select-none wails-drag">
+      <div className="flex-1 h-full wails-drag" />
 
       {appVersion && (
-        <span className='text-xs font-medium text-[var(--color-text-muted)]'>
+        <span className="text-xs font-medium text-[var(--color-text-muted)] wails-no-drag select-none">
           v{appVersion}
         </span>
       )}
 
       {/* 右侧操作 */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 wails-no-drag">
         {/* 通知按钮 */}
         <div className="relative" ref={dropdownRef}>
           <button
