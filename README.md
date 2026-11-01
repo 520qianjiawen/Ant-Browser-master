@@ -1,413 +1,292 @@
-﻿# Ant Browser
+<div align="center">
 
-> 面向多账号隔离、代理绑定和本地环境管理的桌面浏览器工具（Windows / Linux / macOS unsigned）。
+<img src="build/appicon.png" alt="Ant Browser Logo" width="128" height="128" />
 
-[![Release](https://img.shields.io/github/v/release/black-ant/Ant-Browser?sort=semver)](https://github.com/black-ant/Ant-Browser/releases)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)](https://github.com/black-ant/Ant-Browser/releases)
-[![Issues](https://img.shields.io/github/issues/black-ant/Ant-Browser)](https://github.com/black-ant/Ant-Browser/issues)
+# Ant Browser (蚂蚁浏览器)
 
-当前版本：`1.8.0` · 2026-09-03
+**面向多账号深度隔离、全协议代理绑定与防关联指纹对抗的现代化桌面浏览器管理工具**
 
-## 推荐内核项目
+[![Release](https://img.shields.io/github/v/release/520qianjiawen/Ant-Browser-master?sort=semver&style=flat-square)](https://github.com/520qianjiawen/Ant-Browser-master/releases)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](https://github.com/520qianjiawen/Ant-Browser-master/releases)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go)](https://golang.org)
+[![Wails v2](https://img.shields.io/badge/Wails-v2.9+-df1a5a?style=flat-square)](https://wails.io)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)](https://reactjs.org)
+[![Issues](https://img.shields.io/github/issues/520qianjiawen/Ant-Browser-master?style=flat-square)](https://github.com/520qianjiawen/Ant-Browser-master/issues)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](#-license)
 
-Ant Browser 当前推荐配套使用的浏览器内核，来源于开源项目 [fingerprint-chromium](https://github.com/adryfish/fingerprint-chromium)。
+<p align="center">
+  <a href="#-核心特性">核心特性</a> •
+  <a href="#-界面预览">界面预览</a> •
+  <a href="#-推荐内核">推荐内核</a> •
+  <a href="#-代理连接栈架构">代理连接栈</a> •
+  <a href="#-快速开始">快速开始</a> •
+  <a href="#-常用操作与快捷键">常用操作</a> •
+  <a href="#-备份与迁移">备份与迁移</a> •
+  <a href="#-开发者指南">开发者指南</a> •
+  <a href="#-常见问题-faq">常见问题</a>
+</p>
 
-如果你正在寻找可直接下载和维护的指纹内核版本，建议先查看它的 Releases 页面：
+</div>
 
-- <https://github.com/adryfish/fingerprint-chromium/releases>
+---
 
-这个项目为 Ant Browser 的内核准备提供了直接可用的基础来源，这里先对原项目做明确推荐与致谢。
+## 📖 项目简介
 
-Ant Browser 的目标很明确：在一台桌面设备上，帮助用户稳定管理多个彼此隔离的浏览器实例，并配合代理池、浏览器内核和快捷启动能力完成日常运营或测试工作。
+**Ant Browser** 是一款专为跨境电商多店铺运营、社媒多账号矩阵、独立站出海营销、隐私隔离测试及多实例自动化设计的**本地化桌面指纹浏览器**。
 
-## 目录
-
-- [项目简介](#项目简介)
-- [近期更新](#近期更新)
-- [更新日志](CHANGELOG.md)
-- [核心特性](#核心特性)
-- [界面预览](#界面预览)
-- [快速开始](#快速开始)
-- [常用操作](#常用操作)
-- [常见问题](#常见问题)
-- [Roadmap](#roadmap)
-- [开发与发布文档](#开发与发布文档)
-- [贡献](#贡献)
-- [支持与反馈](#支持与反馈)
-- [License](#license)
-
-## 项目简介
-
-Ant Browser 适合以下场景：
-
-- 多账号环境隔离
-- 跨境电商与社媒账号运营
-- 需要独立代理出口的本地测试
-- 需要统一管理浏览器内核和实例配置的团队
-
-这个项目当前提供的核心价值是：
-
-- 给每个账号分配独立浏览器实例
-- 给每个实例绑定独立代理
-- 统一管理浏览器内核、标签、关键字和快捷打开码
-- 在本地保存配置和运行数据，便于自主控制
-
-## 近期更新
-
-### 1.8.0 · 2026-09-03
-
-- 备份渠道：支持本地、OpenList 和 S3（含兼容服务）三种备份位置。
-- 备份范围：支持全量备份，也支持按实例选择性备份；远程历史支持扫描、下载和恢复。
-- OpenList 定时备份：支持每日执行时间、最近执行状态和失败反馈；实例仍在运行时跳过本次任务。
-- 凭据保护：OpenList Token、S3 访问凭据仅保存到本地敏感配置 `backup.local.yaml`，界面默认脱敏并支持按需显示。
-- 恢复安全：备份包增加清单校验、路径校验和解压限制；恢复保留兼容字段，并按当前机器重新映射实例与外部内核路径。
-- 代理连接栈：明确区分 `xray` + sing-box 组合栈与独立 `mihomo` 栈，统一代理测速、连通性、预热和运行时下载流程。
-- 设置维护：新增系统设置重置，并增加定时备份的配置保护；开发入口整理为 `bat\dev.bat` 和 `scripts/dev.sh`。
-
-### 1.7.0 · 2026-08-17
-
-- 实例窗口标识：Windows 运行实例使用独立窗口图标，右上角显示 1-10 / A-Z 角标，窗口标题左侧同步显示运行码
-- 应用图标：统一桌面快捷方式、应用窗口与侧边栏 Logo 的白色背景和蓝色指纹线稿标识
-- 全局备份与恢复：覆盖应用配置、数据库和浏览器数据，仅支持保留现有数据的合并导入、进度展示和导出日志
-- OpenList 备份渠道：配置归档到 `backup.channels.openlist`，使用 Token 认证；Token 仅保存在本地敏感配置 `backup.local.yaml`
-- S3 渠道配置：增加 AWS S3 及兼容服务的 Endpoint、Region、Bucket、对象前缀、Path Style 和访问凭据配置；完整远程备份流程在 1.8.0 完善
-- 备份恢复一致性：保留数据库迁移字段，兼容旧版本备份列缺失，按当前机器归一化实例/内核路径并按 `coreId` 映射外部内核
-- 维护安全：浏览器停止失败时中止备份导入，避免未完成的维护操作继续写入数据
-- 通知中心：支持按全部、未读、错误和警告筛选，批量标记已读、清空通知和跳转相关页面
-- 运行稳定性：改善浏览器异常退出、停止状态、托盘操作以及应用启动和关闭阶段的反馈
-- 退出诊断：新增应用生命周期日志和 Windows 只读退出诊断监视器，便于定位异常退出问题
-- 代理兼容：修复 Clash 配置中 `null` 值导致的导入解析失败
-
-### 1.6.0 · 2026-08-11
-
-- 插件持久化：支持保存插件安装包、安装记录和实例插件配置，实例启动时自动恢复已配置插件
-- 插件迁移：实例备份导入后自动修复插件安装目录、安装包和运行备份路径
-- 指纹处理：跨平台画像使用宿主真实字体避免中日韩文字缺失，删除实例时同步清理指纹检测缓存
-- 窗口启动：保留配置的启动窗口尺寸，仅在超出桌面工作区时收缩
-
-
-### 1.5.0 · 2026-07-25
-
-- 代理增强：支持 HTTPS 代理桥接，完善代理导入、测速和连接可用性处理
-- 实例安全：增加实例删除数据审计，避免误删用户数据目录时缺少确认依据
-- 会话恢复：新增实例最近会话恢复配置，创建、复制、更新和启动流程保持一致
-- 启动服务：补充启动 API 服务端口设置，设置页可查看当前地址并保存偏好端口
-- 界面优化：精简代理池导入流程，新增代理池使用说明入口，减少页面信息堆叠
-
-### 1.4.0 · 2026-07-15
-
-- VPN 优化：完善代理/VPN 检测展示，可直接查看配置代理、认证状态、浏览器出口 IP、ASN/网络、多源归属冲突和来源明细，避免单一 IP 库误判
-- 指纹优化：优化指纹检测页的基线、修改前后对比、自动刷新和启动逻辑；Linux / macOS 指纹环境自动切换英文，避免中文字体缺失导致方块字
-- 移除控制台栏目，应用启动后直接进入实例列表，减少无用入口
-- 增强观测能力：提供指纹识别页面
-
-### 1.3.0 · 2026-06-23
-
-- 自动化增强：完善自动化脚本导入、运行、目标实例选择和执行记录管理，提升多实例自动化编排能力
-- 插件管理：新增插件包管理能力，支持插件安装、导入、启停、删除、实例限制和单实例插件配置
-- VPN 优化：优化代理/VPN 连接链路，完善 Xray、sing-box、Mihomo 等连接栈的启动、测速、检测和预热能力
-- 实例迁移：支持实例导入导出，可将实例配置和完整浏览器用户数据目录打包迁移到新环境
-- 代理适配：实例导入时按代理名称匹配本地同名代理，匹配不到或同名不唯一时自动清空代理
-- 界面优化：优化实例列表、关键字展示、操作菜单和导入导出入口，减少页面拥挤和无效信息
-
-### 1.2.0 · 2026-05-09
-
-- 重点升级接口调用：Launch API 补齐实例增删改查、按 code / selector 启动、runtime session / status / stop 和统一 CDP 入口，方便外部系统直接调用浏览器能力
-- 完善自动化接口链路：脚本执行支持 selector / params 覆盖和 `timeoutMs` 超时控制，双实例 runtime 流程支持超时取消与错误返回
-- 增强代理池：新增链式代理导入、编辑和预览能力，支持 HTTP / SOCKS5 两层链路，并优化直连代理批量导入
-- 优化代理检测：新增测速目标、IP 健康检测目标和桥接启动超时配置，链式代理也可以参与测速与健康检测
-- 改进实例启动：代理异常时支持本次直连启动，不修改实例原有代理配置；默认代理池只保留直连节点
-- 升级书签能力：新增 IP 检测站点默认书签，支持设置启动时自动打开，并可同步到已有未运行实例
-
-### 1.1.0 · 2026-03-19
-
-- 完善 Linux 支持：补齐 Linux 环境下的开发、打包、安装、启动与运行链路，并持续修复安装版启动与退出稳定性问题
-- 补齐 macOS unsigned 内测构建链路：支持在原生 macOS 主机上打包 `.app` / `.zip`，并将用户状态目录放到 `~/Library/Application Support/ant-browser`
-- 新增 SOCKS 代理测试支持：SOCKS 代理能力已进入测试阶段，后续会继续验证稳定性与兼容性
-- 实验性支持接口触发浏览器：支持通过接口启动浏览器实例，便于后续接入自动化流程
-
-完整历史版本记录见 [CHANGELOG.md](CHANGELOG.md)。
-
-## 源码分支说明
-
-- `master`：面向开发者的干净基线分支，不提交 `data/app.db`、实例目录或其他用户数据。首次启动时会自动初始化空数据库。
-- `user_data`：在 `master` 基础上额外提交一份 `data/app.db` 测试快照，便于演示、联调和复现问题。
-- 代理运行时 `bin/xray.exe`、`bin/sing-box.exe` 已随源码仓库提供；开发和发布打包不需要再单独下载这些运行时文件。
-
-## 核心特性
-
-- 实例隔离管理：支持创建、编辑、启动、停止、重启、克隆和删除浏览器实例
-- 代理池配置：支持统一维护代理节点，并将代理分配到具体实例
-- 多协议支持：支持常见代理配置方式，并支持导入 Clash
-- 内核管理：支持维护多个 Chrome 内核版本，并设置默认内核
-- 快捷启动：支持通过实例 Code 和 `Ctrl + K` 快速打开目标实例
-- 标签与检索：支持按标签、关键字、状态、代理、内核、分组进行筛选
-- 自动化脚本：支持脚本导入、运行、目标实例选择、执行记录和外部接口调用
-- 插件管理：支持插件安装、导入、启停、删除、实例限制和单实例插件配置
-- 实例迁移：支持将实例配置和浏览器用户数据目录导出为 ZIP，并导入为新实例
-- 备份与恢复：支持本地、OpenList、S3 备份位置，以及全量和选择性实例备份
-- 远程历史：支持扫描远程备份列表，下载后恢复到本机
-- VPN / 代理检测：支持连接栈预热、测速、IP 健康检测和代理异常处理
-- 设置维护：支持系统设置重置，敏感备份凭据不写入普通配置文件
-- 本地化存储：配置和实例数据保存在本地，适合长期使用和备份
-
-## 界面预览
-
-### 1. 实例列表
-
-<img src="images/readme/002-实例列表.png" alt="实例列表" width="100%" />
-
-对应功能点：
-
-- 统一查看和管理所有浏览器实例
-- 按状态、代理、内核、分组、关键字筛选实例
-- 支持 `新建配置`、启动、停止、重启、配置、克隆、删除
-- 给实例分配快捷打开码，后续可以直接快速启动
-
-### 2. 代理池配置
-
-<img src="images/readme/003-设置代理池.png" alt="代理池配置" width="100%" />
-
-对应功能点：
-
-- 统一管理代理节点
-- 支持按协议、分组筛选代理
-- 支持手动维护代理和导入 Clash
-- 支持查看延迟、IP 健康并挑选可用节点
-
-代理连接栈规则：
-
-- `default_connector_type` 只有两套连接栈：`xray` 和 `mihomo`。
-- `xray` 表示 Xray + sing-box 组合栈：Xray 负责 vmess/vless/trojan/shadowsocks/链式代理等，sing-box 负责 hysteria2/tuic/anytls 等协议。
-- `mihomo` 表示独立 Mihomo 栈：需要桥接的代理统一走 mihomo。
-- 实例启动、代理测速、真实连通性、IP 健康、预热和插件下载代理必须按当前连接栈执行；不得在 `xray` 组合栈和 `mihomo` 栈之间自动混用。
-- 详细约束见 [VPN / 代理协议审计报告](docs/audits/vpn-protocol-audit-report.md)。
-
-### 3. 代理生效验证
-
-<img src="images/readme/004-自定义代理.png" alt="代理生效验证" width="100%" />
-
-对应功能点：
-
-- 启动实例后访问 IP 检测网站验证代理是否真正生效
-- 检查 IP 地区、ASN、运营商和风险值等信息
-- 用于确认当前实例是否已经走目标代理出口
-
-## 快速开始
-
-### 环境要求
-
-- 操作系统：
-  - Windows 10 / 11（64 位）
-  - Linux（amd64 / arm64）
-  - macOS（amd64 / arm64，当前为 unsigned 内测包）
-- 建议内存：8 GB 及以上
-- 建议磁盘空间：2 GB 以上
-
-### 下载与运行
-
-1. 前往 Releases 页面下载最新版本：<https://github.com/black-ant/Ant-Browser/releases>
-2. 安装版直接运行 `AntBrowser-Setup-*.exe`
-3. 便携版解压后运行 `ant-chrome.exe`
-4. Linux 包下载后可直接安装 `ant-browser_<version>_<arch>.deb`，或解压 `tar.gz` 后运行 `ant-chrome`
-5. macOS unsigned 包解压后运行 `AntBrowser-<version>-macos-<arch>.app`；如被 Gatekeeper 拦截，请对本机测试包执行 `xattr -dr com.apple.quarantine <app路径>` 后再打开
-
-### 从源码运行
-
-1. 开发默认使用 `master` 分支；该分支不带测试用户数据，适合作为日常开发基线。
-2. 如需带测试库的演示环境，请切换到 `user_data` 分支。
-3. Windows 统一执行 `bat\dev.bat`；默认是 `stable` 静态资源模式，需要热更新时使用 `bat\dev.bat live`，需要受限内存复现时使用 `bat\dev.bat limited`。
-4. Windows 运行时使用 `bin/xray.exe`、`bin/sing-box.exe`；Linux 运行时使用 `bin/linux-<arch>/xray`、`bin/linux-<arch>/sing-box`；macOS 运行时使用 `bin/darwin-<arch>/xray`、`bin/darwin-<arch>/sing-box`。
-5. 运行时文件采用“仓库固定 + 哈希校验”，校验清单在 `publish/runtime-manifest.json`，固定来源清单在 `publish/runtime-sources.json`。
-6. 如需刷新 Linux / macOS 运行时，执行 `python3 tools/runtime/sync-runtime.py --target <target>`（会按固定来源下载、校验归档并更新 manifest）。
-
-开发模式说明：
-
-- `bat\dev.bat`：默认 `stable` 模式，先构建 `frontend/dist`，再以静态资源模式启动 Wails
-- `bat\dev.bat stable`：先构建 `frontend/dist`，再以静态资源模式启动 Wails，不依赖外部 Vite dev server
-- `bat\dev.bat live`：启动 Vite watcher，并通过 `-frontenddevserverurl` 接入桌面壳
-- `bat\dev.bat limited`：在 `live` 基础上为 watcher 与其子进程附加 Windows Job Object 内存限制
-- Linux shell 入口：`./scripts/dev.sh` 默认使用 `stable`，也可传入 `live` 或 `help`
-- 如需为依赖下载配置代理，可在启动前设置 `DEV_PROXY_URL`、`DEV_NO_PROXY`、`DEV_GOPROXY`
-
-### 自动化脚本包
-
-自动化脚本现在分成两层：
-
-- 仓库里的可提交 demo 脚本库：`backend/internal/automation/demo-library/`
-- 本地运行时 / 用户自定义脚本：`data/automation/scripts/`
-
-规则是：
-
-- 只有 demo 脚本库里的脚本会提交到 git
-- `data/automation/scripts/` 下的运行时脚本统一忽略，不提交 git
-- 默认只同步三个 demo：`dual-instance-runtime-switch`、`news-query-txt`、`web-image-generate-download`
-
-脚本包采用“一脚本一目录”的可搬运结构：
-
-```text
-<script-id>/
-├── automation.script.json
-├── index.cjs
-└── 其他辅助文件
+与依赖中心化云端服务器的传统商业防关联浏览器不同，Ant Browser 始终坚持**“数据本地化、自主可控、极简高效”**的设计哲学：
+
+- 🔒 **数据绝对自主**：所有实例配置、Cookie、本地存储和浏览历史均保存在本机，绝不强制同步上传至第三方云端；
+- 🌐 **原生双连接栈代理**：内置 `xray` + `sing-box` 组合栈与独立 `mihomo` 栈，全协议通杀并杜绝直连泄露；
+- 🛡️ **深层指纹防关联**：支持原生指纹内核与 SunBrowser 生态内核，全方位注入硬件特征与随机噪声；
+- 📍 **Auto-Geo 智能联动**：基于出口 IP 自动识别并适配实例语言、国家地区与时区，防漏网阻断保护；
+- 🤖 **自动化友好**：标准 CDP 远程调试端口与外部 RESTful Launch API，无缝串接 Playwright、Puppeteer 与 Selenium。
+
+---
+
+## ✨ 核心特性
+
+### 1. 深度环境隔离与防串号
+- **独立环境存储**：每个浏览器实例分配完全独立的 `User Data` 目录，存储、IndexedDB、缓存、Service Worker 和 Cookie 彻底物理隔离，互不串扰。
+- **一键克隆与迁移**：支持将运行环境打包导出为 ZIP，在新设备一键导入还原，保持环境完全一致。
+
+### 2. 底层级指纹伪装与对抗
+- **多维度指纹矩阵**：支持 Canvas 噪声、WebGL Vendor/Renderer 伪装、AudioContext 音频指纹保护、ClientRects 杂波注入。
+- **真实硬件与网络环境模拟**：自定义 User-Agent、平台标识 (Platform/OS)、屏幕分辨率、硬件并发数 (CPU 核心数)、设备内存大小 (RAM)、系统语言与 WebRTC 局域网/公网 IP 防泄漏。
+- **字体与跨平台对齐**：智能处理宿主字体与跨平台差异，杜绝因中文字体缺失造成的方块字与异常指纹特征。
+
+### 3. 双连接栈全协议代理体系
+- **双栈架构**：提供 `xray`（Xray + sing-box 组合栈）与 `mihomo`（独立 Mihomo 栈）两套完整连接栈。
+- **主流协议全覆盖**：全面支持 VMess、VLess、Trojan、Shadowsocks、Hysteria2、TUIC、AnyTLS 以及 HTTP / SOCKS5 链式代理与 Clash 订阅导入。
+- **出口防泄漏保护**：严格区分连接栈，代理连通性探测异常时**保留代理路径、坚决不回退直连**，从源头防止真实 IP 曝光导致账号关联封禁。
+
+### 4. Auto-Geo 出口自动探测与地理适配
+- **出口 IP 实时探针**：实例启动时通过目标代理隧道发起出口探测，精准获取归属地、ASN 及运营商信息。
+- **多语言与时区自动对齐**：根据探测到的出口国家代码，自动同步调整浏览器实例的 `Accept-Language`、默认语言和系统时区，无需人工繁琐设置。
+
+### 5. 扩展插件持久化与油猴脚本
+- **插件全生命周期管理**：支持 Chrome 扩展离线包（`.crx` / 解压目录）导入与单实例绑定配置。
+- **重启自愈**：支持实例关闭重启后自动恢复扩展包安装与配置，保证小助手、截图脚本与翻译插件长期稳定运行。
+
+### 6. 实例窗口管理与高效交互
+- **独立任务栏图标与数字角标**：Windows / macOS 运行实例自带独立窗口图标与 1-10 / A-Z 识别角标，多开时一目了然。
+- **`Ctrl + K` (Mac `Cmd + K`) 快捷启动器**：全局瞬时唤出搜索框，支持按 Code 打开码、实例名称、分组或标签快速定位并启动实例。
+
+### 7. 企业级安全备份与灾备恢复
+- **多端同步渠道**：支持 本地存档、OpenList (Alist 挂载) 以及 AWS S3 兼容对象存储（MinIO、Cloudflare R2 等）。
+- **敏感凭据物理隔离**：Token 及密钥仅保存在本地未跟踪文件 `backup.local.yaml`，界面默认脱敏显示，绝不随配置文件或备份包泄露。
+
+---
+
+## 🖼️ 界面预览
+
+| 首页控制台 | 实例列表与筛选 |
+|:---:|:---:|
+| ![首页控制台](images/readme/001-首页.png) | ![实例列表](images/readme/002-实例列表.png) |
+| **代理池配置与测速** | **出口验证与防关联检测** |
+| ![代理池配置](images/readme/003-设置代理池.png) | ![出口验证](images/readme/004-自定义代理.png) |
+
+---
+
+## 🧩 推荐内核
+
+代理底层运行时（Xray / sing-box）已随仓库内置提供，日常运行仅需配置浏览器内核：
+
+### 1. 首推指纹内核：fingerprint-chromium（推荐）
+Ant Browser 深度优化适配开源项目 [fingerprint-chromium](https://github.com/adryfish/fingerprint-chromium)。该内核在底层对 Chromium 源码进行了指纹防护补丁编译，提供原生的防关联能力。
+- **下载地址**：[fingerprint-chromium Releases](https://github.com/adryfish/fingerprint-chromium/releases)
+- **配置方法**：下载对应系统版本的解压包，解压至本地目录后在 `内核管理` 中添加并选定即可。
+
+### 2. 兼容内核：SunBrowser (AdsPower 内核)
+- 支持 SunBrowser 内核生态识别与一键下载；
+- 启动时自动过滤非通用参数，保留核心代理隧道、数据目录隔离与 CDP 调试通道。
+
+### 3. 通用 Chromium / 绿色 Chrome
+- 支持直接指定本机已安装的绿色版 Chrome 或 Chromium，确保目录下包含对应系统的二进制可执行文件即可。
+
+> **建议目录规范**：
+> ```text
+> chrome/
+> └── chrome-142/
+>     ├── chrome.exe (或 macOS/Linux 可执行文件)
+>     └── ...
+> ```
+
+---
+
+## 🌐 代理连接栈架构
+
+为保证网络协议的绝对兼容与稳定性，Ant Browser 实现了清晰的双连接栈体系（在 `系统设置 > browser.default_connector_type` 中切换）：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Ant Browser 实例                        │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+            ┌──────────────────┴──────────────────┐
+            ▼                                     ▼
+┌───────────────────────┐             ┌───────────────────────┐
+│   xray 组合栈 (默认)   │             │   mihomo 独立栈       │
+├───────────────────────┤             ├───────────────────────┤
+│ • Xray-core           │             │ • Mihomo (Clash Meta) │
+│   - VMess / VLess     │             │   - 统一接管所有协议   │
+│   - Trojan / SS       │             │   - 支持 Clash 规则流 │
+│   - HTTP/SOCKS 链式代理│             │   - 适合复杂订阅场景  │
+│ • sing-box            │             │                       │
+│   - Hysteria 2 / TUIC │             │                       │
+│   - AnyTLS 等新潮协议 │             │                       │
+└───────────────────────┘             └───────────────────────┘
 ```
 
-其中：
+> [!IMPORTANT]
+> **连接栈使用准则**：
+> 1. 实例启动、节点测速、真实连通性测试、IP 健康度探针与网络预热均严格按当前所选栈执行，**绝不跨栈自动混用**；
+> 2. 切换连接栈后，代理节点需要重新测速以刷新对应栈的可用性标记；
+> 3. 当开启出口探测保护时，若代理节点不可用，实例将拦截启动并报错提示，坚决不回退直连保护您的真实 IP。
 
-- `automation.script.json`：脚本元数据和默认参数
-- `index.cjs`：入口脚本，`entryFile` 也可以改成相对路径，例如 `scripts/index.cjs`
-- 其他辅助文件：脚本依赖的本地模块、模板、静态资源
+---
 
-运行时落盘结构和分发结构不同。应用内部会把脚本写到：
+## 🚀 快速开始
 
-```text
-data/automation/scripts/<script-id>/
-├── config
-├── index.cjs
-└── 其他辅助文件
+### 系统支持
+- **Windows**：Windows 10 / 11（64 位）
+- **macOS**：macOS 11+（Intel / Apple Silicon M 系列）
+- **Linux**：Debian / Ubuntu / CentOS 等主流发行版（x86_64 / aarch64）
+
+### 下载安装
+
+1. 从 [Releases 页面](https://github.com/520qianjiawen/Ant-Browser-master/releases) 获取适配您操作系统的版本：
+   - **Windows**：下载安装版 `AntBrowser-Setup-*.exe` 或绿色便携版 `ant-chrome.zip`；
+   - **macOS**：下载 `AntBrowser-*-macos-*.app` 或压缩包；
+   - **Linux**：下载 `ant-browser_*_amd64.deb` 进行安装，或使用免安装 `tar.gz` 归档。
+
+> [!TIP]
+> **macOS 首次打开提示“已损坏”或“无法验证开发者”？**  
+> 打开终端执行以下命令清除隔离属性即可正常运行：
+> ```bash
+> xattr -dr com.apple.quarantine "/Applications/Ant Browser.app"
+> ```
+
+### 首次配置推荐三步走
+
+1. **配置代理节点**：进入 `代理池配置`，点击 `新建代理` 或导入 Clash 订阅，点击测速确保节点延迟正常。
+2. **准备浏览器内核**：进入 `内核管理`，点击下载或手动选择已下载解压的 `fingerprint-chromium` 目录并设为默认。
+3. **创建并启动实例**：进入 `实例列表`，点击 `新建配置`，指定名称并绑定刚配置的代理节点，点击 **启动**。首次启动建议访问 [ipinfo.io](https://ipinfo.io) 或 [whoer.net](https://whoer.net) 验证出口与伪装效果。
+
+---
+
+## ⌨️ 常用操作与快捷键
+
+| 操作目标 | 入口 / 快捷键 | 功能描述 |
+| :--- | :--- | :--- |
+| **全局快速启动器** | `Ctrl + K` (Mac: `Cmd + K`) | 快速输入 Code 打开码、实例名称、标签或分组，秒级直达并启动 |
+| **新建浏览器实例** | `实例列表 > 新建配置` | 创建全新的独立环境，分配专属代理与指纹参数 |
+| **快速复制环境** | `实例操作项 > 克隆` | 完整复制指纹参数与配置模板，快速批量扩充实例 |
+| **实例数据迁移** | `实例操作项 > 导出 / 导入` | 打包当前实例的 User Data 目录为 ZIP，在新电脑无缝还原 |
+| **代理池状态监控** | `代理池配置` | 批量测试延迟、检查 IP 健康度与多源归属对齐 |
+| **系统灾备与恢复** | `系统维护 > 备份与恢复` | 创建本地或云端归档，支持全量或按实例选择性热恢复 |
+| **系统重置** | `系统维护 > 系统设置 > 重置` | 一键重置可配置项至初始干净状态 |
+
+---
+
+## 💾 备份与迁移
+
+Ant Browser 提供了可靠的灾难备份与多机器同步机制：
+
+1. **备份范围自由选**：支持全局系统备份（应用配置 + 数据库 + 全量实例目录），也支持按单个或多个实例精细化备份。
+2. **多存储介质支持**：
+   - **本地目录**：生成标准的加密兼容 `.zip` 包；
+   - **OpenList (Alist)**：利用 WebDAV / Token 自动推送到私有网盘，支持设定每日定时静默备份；
+   - **S3 协议兼容云存储**：支持 AWS S3、MinIO、Cloudflare R2、阿里云 OSS、腾讯云 COS 等对象存储服务。
+3. **物理安全隔离**：OpenList 访问凭据与 S3 SecretKey 仅储存在本地物理文件 `backup.local.yaml` 中，已被 `.gitignore` 严格忽略，绝不会在版本控制中泄露。
+
+---
+
+## 🛠️ 开发者指南
+
+### 环境依赖
+- **Go**：`>= 1.21`
+- **Node.js**：`>= 18.0.0`
+- **Wails CLI**：`v2.9.x` (`go install github.com/wailsapp/wails/v2/cmd/wails@latest`)
+
+### 代码分支约定
+- `main`：干净的开发基线分支，不包含任何个人测试数据库与临时数据，适合日常开发与 PR 提交；
+- `user_data`：附带演示与联调预设数据的分支，用于快速复现问题与功能演示。
+
+### 本地开发
+
+#### Windows 环境
+统一使用根目录的 `bat\dev.bat` 脚本：
+```cmd
+:: 1. 默认稳定模式（先构建前端静态文件，由 Wails 宿主加载）
+bat\dev.bat
+
+:: 2. 实时热更新模式（启动 Vite Dev Server，适合调试界面）
+bat\dev.bat live
+
+:: 3. 内存受限沙盒调试模式（复现高负载场景）
+bat\dev.bat limited
 ```
 
-这里的 `config` 是应用内部持久化格式；对外复制、导入、脚本库管理一律使用 `automation.script.json` 包结构。
+#### macOS / Linux 环境
+统一使用 `scripts/dev.sh` 脚本：
+```bash
+chmod +x scripts/dev.sh
+# 默认稳定模式
+./scripts/dev.sh
 
-### Windows 发布打包（源码）
+# 实时热更新模式
+./scripts/dev.sh live
+```
 
-Windows 发布脚本默认保持原有 NSIS 安装包行为，也可以生成便携 ZIP，或一次生成两种产物：
+### 生产打包构建
 
-```powershell
-bat\publish.bat zip
+```bash
+# Windows 打包（生成 NSIS 安装包与便携 ZIP）
 bat\publish.bat both
-bat\publish.bat -Target WINDOWS -WindowsFormat INSTALLER
-bat\publish.bat -Target WINDOWS -WindowsFormat PORTABLE
-bat\publish.bat -Target WINDOWS -WindowsFormat BOTH
-```
 
-省略 `-WindowsFormat` 时等同于 `INSTALLER`。`zip` 快捷命令只生成便携 ZIP，`both` 快捷命令同时生成安装包和便携 ZIP。安装包和便携 ZIP 输出到 `publish\output\`。
-
-### Linux 发布打包（源码）
-
-Linux 发布脚本位于 `publish/linux/`。
-
-```bash
+# Linux 打包（支持 x86_64 与 aarch64）
 bash publish/linux/publish-linux.sh --arch amd64
-bash publish/linux/publish-linux.sh --arch arm64
-```
 
-详细说明见 [publish/linux/README.md](publish/linux/README.md)。
-
-### macOS unsigned 发布打包（源码）
-
-macOS 发布脚本位于 `publish/mac/`，必须在原生 macOS 主机上执行，且目标架构需与主机架构一致。
-
-```bash
-bash publish/mac/publish-mac.sh --arch amd64
+# macOS 打包（在 Mac 主机上生成 .app 与 .zip）
 bash publish/mac/publish-mac.sh --arch arm64
 ```
 
-脚本会生成 unsigned `.app` 和 `.zip`，适合 PR 验证与内部测试。详细说明见 [publish/mac/README.md](publish/mac/README.md)。
+---
 
-### 准备浏览器内核
+## ❓ 常见问题 (FAQ)
 
-代理运行时已经随仓库提供，你只需要准备浏览器内核。
+### Q1：启动时弹出“出口位置探测失败；保留代理路径，不回退直连”？
+> **解答**：这是 Ant Browser 的核心安全机制。当该实例绑定的代理节点因网络波动、节点欠费或配置错误而无法连接外部探针时，系统会主动拦截请求，防止浏览器在无代理保护的情况下暴露本机真实 IP。  
+> **排查**：前往 `代理池配置`，对该节点进行单次测速排查；若为私有内网或特定测试代理，可临时在实例设置中调整探测超时。
 
-1. 打开应用，进入 `指纹浏览器 > 内核管理`
-2. 优先使用应用内下载功能准备内核
-3. 如果手动准备内核，请确保目录下存在 `chrome.exe`
+### Q2：节点在外部 Clash / V2Ray 客户端可用，为什么在 Ant Browser 测速失败？
+> **解答**：检查当前设置中的 `default_connector_type`。如果本地客户端使用的是 Mihomo，而 Ant Browser 处于 `xray` 栈模式，部分特定协议（如某些定制版加密）可能表现不一致。请将连接栈切换至与外部一致的类型后重新测速。
 
-建议目录结构：
+### Q3：如何保证多账号绝对不串号？
+> **解答**：
+> 1. 坚持**“一号一实例，一实例一固定纯净代理”**原则；
+> 2. 实例创建后切勿频繁更换国家与 IP 跨度大的代理出口；
+> 3. 使用推荐的 `fingerprint-chromium` 内核，生成独立的硬件噪声种子。
 
-```text
-chrome/
-  chrom-142/
-    chrome.exe
-    ...
-```
+### Q4：安装的 Chrome 扩展插件在实例关闭后失效怎么办？
+> **解答**：建议通过 Ant Browser 的 `扩展管理` 模块统一上传管理插件（`.crx` 或解压目录），并在实例的配置项中关联该插件。这样实例在任何电脑启动、恢复时均能自动加载。
 
-### 第一次使用建议流程
+---
 
-1. 在 `代理池配置` 中先导入或新增可用代理节点
-2. 在 `实例列表` 中点击 `新建配置`
-3. 选择实例名称、内核、代理、标签和需要的启动参数
-4. 返回实例列表，点击启动按钮运行实例
-5. 打开 IP 检测网站，确认代理结果是否符合预期
+## 🤝 鸣谢与生态项目
 
-### 备份与恢复
+Ant Browser 的构建离不开以下优秀的开源项目与社区生态支持：
 
-1. 打开 `系统维护 > 备份与恢复`。
-2. 选择 `全量备份`，或选择需要迁移的实例。
-3. 选择一个或多个备份位置：本地、OpenList、S3。
-4. 从历史列表选择本地或远程备份，可下载并恢复；恢复采用合并方式，不会直接清空现有数据。
-5. 需要自动备份时，先配置 OpenList，再设置每日执行时间。
+- [Wails](https://wails.io/)：现代 Go + 现代 Web 前端跨平台桌面应用框架
+- [fingerprint-chromium](https://github.com/adryfish/fingerprint-chromium)：优秀的开源防关联 Chromium 补丁项目
+- [Xray-core](https://github.com/XTLS/Xray-core)：功能完备的模块化网络代理工具
+- [sing-box](https://github.com/SagerNet/sing-box)：通用代理平台，支持下一代现代协议
+- [Mihomo](https://github.com/MetaCubeX/mihomo)：基于 Clash 核心的现代规则分流内核
+- 特别感谢 [LINUX DO](https://linux.do/) 社区对开源项目的交流与支持
 
-OpenList Token 和 S3 访问凭据保存在本机的 `backup.local.yaml`，不会写入 `config.yaml`；不要把该文件复制到公共仓库或提交到 git。
+---
 
-## 常用操作
+## 📄 License
 
-| 目标 | 入口 | 说明 |
-| --- | --- | --- |
-| 新建浏览器实例 | `实例列表 > 新建配置` | 创建一个新的独立浏览器环境 |
-| 配置代理池 | `代理池配置` | 维护代理节点并检查延迟、健康状态 |
-| 绑定实例代理 | `实例编辑页` | 给指定实例分配目标代理节点 |
-| 启动实例 | `实例列表` | 单击启动按钮即可运行目标实例 |
-| 快速打开实例 | `Ctrl + K` | 可按 Code、实例名、标签、关键字快速检索 |
-| 管理浏览器内核 | `内核管理` | 新增、编辑、删除和设置默认内核 |
-| 验证代理结果 | 启动实例后访问 IP 检测网站 | 核对 IP、地区、ASN、风险值 |
-| 备份与恢复 | `系统维护 > 备份与恢复` | 创建本地或远程备份，扫描、下载和恢复历史备份 |
-| 设置重置 | `系统维护 > 系统设置 > 重置` | 将可管理设置恢复为默认值 |
-
-## 常见问题
-
-### 1. 应用无法启动怎么办？
-
-先检查浏览器内核路径是否有效，并确认目标目录下存在 `chrome.exe`。
-
-### 2. 实例启动了但代理没有生效怎么办？
-
-先检查代理节点本身是否可用，再确认该实例已经正确绑定代理。建议启动后访问 IP 检测网站复核当前出口。
-
-如果代理池里本地客户端可用节点很多，但 Ant Browser 中“只展示可用”数量明显偏少，先确认当前 `default_connector_type` 是否与本地客户端一致。Ant Browser 不会在 `xray` 组合栈和 `mihomo` 栈之间自动混用；切换连接栈后需要重新测速。
-
-### 3. 实例太多，怎么快速找到目标实例？
-
-可以在 `实例列表` 中按状态、代理、内核、分组、关键字筛选，也可以通过 `Ctrl + K` 使用实例 Code 或名称快速启动。
-
-### 4. 多个账号怎么避免串号？
-
-建议采用一账号一实例、一实例一稳定代理的方式，不要混用浏览器环境，也不要频繁切换同一实例的出口 IP。
-
-### 5. 备份凭据会不会写进配置文件？
-
-不会写入普通 `config.yaml`。OpenList Token 和 S3 访问凭据保存在被忽略的本地文件 `backup.local.yaml`，界面读取时默认显示为脱敏值。
-
-## Roadmap
-
-- 完善自动化模块能力
-- 持续补充使用文档和接口说明
-- 增强实例模板、批量管理和检索体验
-
-## 贡献
-
-欢迎通过 Issue 和 Pull Request 参与改进。
-
-- Bug 反馈：请附带版本号、系统版本、复现步骤和截图
-- 功能建议：请说明业务场景、预期行为和现有问题
-- 文档优化：欢迎直接提交 README、教程和截图说明相关改进
-
-如果是较大改动，建议先开 Issue 对齐需求再提交 PR。
-
-## 开发与发布文档
-
-- Windows 开发与发布：[`bat/README.md`](bat/README.md)
-- Linux 打包：[`publish/linux/README.md`](publish/linux/README.md)
-- macOS unsigned 打包：[`publish/mac/README.md`](publish/mac/README.md)
-- 公共发布快照：[`tools/public-release/README.md`](tools/public-release/README.md)
-- 代理协议与连接栈：[`docs/audits/vpn-protocol-audit-report.md`](docs/audits/vpn-protocol-audit-report.md)
-
-## 支持与反馈
-
-- Releases：<https://github.com/black-ant/Ant-Browser/releases>
-- Issues：<https://github.com/black-ant/Ant-Browser/issues>
-- 感谢以下社区的支持：<https://linux.do/>
-
-## License
-
-当前仓库暂未附带独立的 `LICENSE` 文件，后续会补充。
+本项目遵循 [MIT License](LICENSE) 开源协议。
