@@ -8,9 +8,11 @@ import (
 )
 
 type BrowserFingerprintCheckResult struct {
-	ProfileId string                         `json:"profileId"`
-	Runtime   BrowserFingerprintRuntimeInfo  `json:"runtime"`
-	Expected  BrowserFingerprintExpectedInfo `json:"expected"`
+	ProfileId         string                         `json:"profileId"`
+	Runtime           BrowserFingerprintRuntimeInfo  `json:"runtime"`
+	Expected          BrowserFingerprintExpectedInfo `json:"expected"`
+	Engine            string                         `json:"engine,omitempty"`
+	UnsupportedFields []string                       `json:"unsupportedFields,omitempty"`
 }
 
 type BrowserFingerprintRuntimeInfo struct {
@@ -85,15 +87,24 @@ func (a *App) BrowserProfileFingerprintCheck(profileId string) (*BrowserFingerpr
 		return nil, fmt.Errorf("实例调试端口不可用，请重启实例后再试: %w", err)
 	}
 
+	if err := a.ensureRunningSunBrowserAutomaticRuntime(profile); err != nil {
+		return nil, err
+	}
 	runtimeInfo, err := evaluateBrowserFingerprintRuntime(profile.DebugPort)
 	if err != nil {
 		return nil, err
 	}
-	return &BrowserFingerprintCheckResult{
+	result := &BrowserFingerprintCheckResult{
 		ProfileId: profile.ProfileId,
 		Runtime:   runtimeInfo,
 		Expected:  buildBrowserFingerprintExpected(a.fingerprintCheckExpectedArgsFromProfile(profile)),
-	}, nil
+	}
+	if a.isSunBrowserCore(profile.CoreId) {
+		result.Engine = "sunbrowser"
+		result.UnsupportedFields = sunBrowserUnsupportedFields()
+		result.Expected = sunBrowserAutomaticExpected(result.Expected, a.readSunBrowserAutoState(profile.ProfileId))
+	}
+	return result, nil
 }
 
 func (a *App) fingerprintCheckRuntimeProfileSnapshot(profileId string, detector func(string) (browserRuntimeDetection, bool), debugPortReady func(int) bool) (*BrowserProfile, error) {

@@ -222,10 +222,13 @@ func (a *App) runtimeBookmarksForProfileExpectedArgsAndProfile(profileId string,
 }
 
 type fingerprintCheckPageContext struct {
-	ProfileId  string                         `json:"profileId"`
-	Expected   BrowserFingerprintExpectedInfo `json:"expected"`
-	Proxy      fingerprintCheckProxyContext   `json:"proxy"`
-	UILanguage string                         `json:"uiLanguage"`
+	ProfileId         string                         `json:"profileId"`
+	Expected          BrowserFingerprintExpectedInfo `json:"expected"`
+	Proxy             fingerprintCheckProxyContext   `json:"proxy"`
+	UILanguage        string                         `json:"uiLanguage"`
+	Engine            string                         `json:"engine,omitempty"`
+	UnsupportedFields []string                       `json:"unsupportedFields,omitempty"`
+	AutoEnvironment   *sunBrowserAutoLocation        `json:"autoEnvironment,omitempty"`
 }
 
 type fingerprintCheckProxyContext struct {
@@ -261,13 +264,25 @@ func (a *App) buildFingerprintCheckPageContextForExpectedArgs(profileId string, 
 }
 
 func (a *App) buildFingerprintCheckPageContextForExpectedArgsAndProfile(profileId string, expectedArgs []string, profile *BrowserProfile) ([]byte, error) {
-	expected := buildBrowserFingerprintExpected(expectedArgs)
-	data, err := json.MarshalIndent(fingerprintCheckPageContext{
+	coreID := ""
+	if profile != nil {
+		coreID = profile.CoreId
+	}
+	expected := buildBrowserFingerprintExpected(a.filterFingerprintExpectedArgs(coreID, expectedArgs))
+	context := fingerprintCheckPageContext{
 		ProfileId:  profileId,
 		Expected:   expected,
 		Proxy:      a.buildFingerprintCheckProxyContext(profile),
 		UILanguage: fingerprintCheckPreferredUILanguage(expected),
-	}, "", "  ")
+	}
+	if a.isSunBrowserCore(coreID) {
+		context.Engine = "sunbrowser"
+		context.UnsupportedFields = sunBrowserUnsupportedFields()
+		context.AutoEnvironment = a.readSunBrowserAutoState(profileId)
+		context.Expected = sunBrowserAutomaticExpected(context.Expected, context.AutoEnvironment)
+		context.UILanguage = fingerprintCheckPreferredUILanguage(context.Expected)
+	}
+	data, err := json.MarshalIndent(context, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("生成指纹检测上下文失败: %w", err)
 	}
@@ -368,7 +383,7 @@ func (a *App) fingerprintCheckProfileExpectedArgs(profileId string) ([]string, e
 func (a *App) buildFingerprintCheckExpectedArgs(profileId string, coreId string, fingerprintArgs []string, launchArgs []string) []string {
 	fingerprintLaunchArgs := a.buildBrowserFingerprintCapabilityReport(profileId, coreId, fingerprintArgs).LaunchArgs
 	sanitizedLaunchArgs, _ := sanitizeManagedLaunchArgs(launchArgs)
-	return combineFingerprintExpectedArgs(fingerprintLaunchArgs, sanitizedLaunchArgs)
+	return a.filterFingerprintExpectedArgs(coreId, combineFingerprintExpectedArgs(fingerprintLaunchArgs, sanitizedLaunchArgs))
 }
 
 func combineFingerprintExpectedArgs(argGroups ...[]string) []string {
@@ -385,11 +400,11 @@ func (a *App) fingerprintCheckExpectedArgsFromProfile(profile *BrowserProfile) [
 	}
 	if browserProfileMayHaveRuntimeLaunchArgs(profile) {
 		if args := normalizeNonEmptyStrings(profile.LastLaunchArgs); len(args) > 0 {
-			return args
+			return a.filterFingerprintExpectedArgs(profile.CoreId, args)
 		}
 		if args := a.recoverBrowserLaunchArgsForProfile(profile); len(args) > 0 {
 			profile.LastLaunchArgs = append([]string{}, args...)
-			return args
+			return a.filterFingerprintExpectedArgs(profile.CoreId, args)
 		}
 	}
 	return a.buildFingerprintCheckExpectedArgs(profile.ProfileId, profile.CoreId, profile.FingerprintArgs, profile.LaunchArgs)
@@ -401,11 +416,11 @@ func (a *App) fingerprintCheckExpectedArgsFromLockedProfile(profile *BrowserProf
 	}
 	if browserProfileMayHaveRuntimeLaunchArgs(profile) {
 		if args := normalizeNonEmptyStrings(profile.LastLaunchArgs); len(args) > 0 {
-			return args
+			return a.filterFingerprintExpectedArgs(profile.CoreId, args)
 		}
 		if args := a.recoverBrowserLaunchArgsForProfile(profile); len(args) > 0 {
 			profile.LastLaunchArgs = append([]string{}, args...)
-			return args
+			return a.filterFingerprintExpectedArgs(profile.CoreId, args)
 		}
 	}
 	return a.buildFingerprintCheckExpectedArgs(profile.ProfileId, profile.CoreId, profile.FingerprintArgs, profile.LaunchArgs)
@@ -595,6 +610,11 @@ var UI_ZH = {
   'Config Sent': '配置下发',
   'Built-in Expected': '内置期望',
   'Known Ineffective': '实测无效',
+  'Engine Unsupported': '内核未支持',
+  'Non-proxied UDP disabled (requested)': '已请求禁用非代理 UDP（尚待验证）',
+  'SunBrowser proprietary fingerprint configuration is not mapped; native hardware and rendering values are retained automatically, and Ant seed/noise switches are omitted': 'SunBrowser 专有指纹配置尚未映射；自动保留内核原生硬件和渲染输出，不下发 Ant 种子及噪声参数',
+  'The requested policy restricts non-proxied UDP, not all host candidates. mDNS .local candidates are host candidates, not evidence of a public IP leak. Host count alone does not verify this policy or proxy routing': '该策略限制非代理 UDP，并非禁止所有 host 候选。mDNS .local 候选不代表公网 IP 泄漏；仅凭 host 数量不足以验证该策略或代理路由',
+  'WebRTC policy does not explicitly block host candidates; showing actual collected value only': 'WebRTC 策略未明确禁止 host candidate，只展示实际采集值',
   'Before/After': '修改前后',
   'Changed': '已变化',
   'Unchanged': '未变化',
@@ -627,6 +647,15 @@ var UI_ZH = {
   'Proxy Check': '代理检测',
   'Configured Proxy': '配置代理',
   'Browser Exit': '浏览器出口',
+  'Auto-environment Egress': '自动环境出口对比',
+  'Egress Match': '出口一致',
+  'Same-family Different': '同地址族出口不同',
+  'Cross-family Observation': '跨地址族观测',
+  'Comparison Unavailable': '暂不可比对',
+  'Expected and browser IPs match': '自动环境与浏览器 IP 一致',
+  'Same-family IPs differ; investigate rotating exits, proxy routing or cache; not automatically a leak': '同地址族 IP 不同；需排查出口轮换、代理路由或缓存，并不直接代表泄漏',
+  'Different IP families; not a mismatch or proof of a leak': 'IP 地址族不同；不判为未命中，也不证明存在泄漏',
+  'Missing or invalid auto-environment or browser IP': '自动环境或浏览器 IP 缺失或无效',
   'Name': '名称',
   'Type': '类型',
   'Endpoint': '地址',
@@ -1558,8 +1587,8 @@ function buildFingerprintRows(report, context) {
   rows.push(fingerprintRow('Platform', expected.platform, report.identity.platform, comparePlatformStatus(expected.platform, report.identity.platform), 'Compare navigator.platform'));
   rows.push(observedFingerprintRow('Platform Version', context, 'platformVersion', expected.platformVersion, uaVersion, comparePlatformVersionStatus, 'Prefer full platform version comparison; if User-Agent / UA-CH exposes short version only, compare visible prefix'));
   rows.push(fingerprintRow('Webdriver', 'false', report.identity.webdriver ? 'true' : 'false', report.identity.webdriver ? 'mismatch' : 'match', 'Expected navigator.webdriver not to expose automation', 'Built-in Expected'));
-  var expectsWebRTCBlocked = hasExpected(expected.webrtcPolicy);
-  rows.push(fingerprintRow('WebRTC Host', expectsWebRTCBlocked ? '0 host candidates' : '', report.network.localCandidateCount + ' host candidates', expectsWebRTCBlocked ? (report.network.localCandidateCount > 0 ? 'mismatch' : 'match') : 'unknown', expectsWebRTCBlocked ? 'Compare whether local host candidate is exposed' : 'No WebRTC expected value configured; showing actual collected value only'));
+  var expectsWebRTCBlocked = expected.webrtcPolicy === 'disable_non_proxied_udp';
+  rows.push(fingerprintRow('WebRTC Host', expectsWebRTCBlocked ? 'Non-proxied UDP disabled (requested)' : '', report.network.localCandidateCount + ' host candidates', 'unknown', expectsWebRTCBlocked ? 'The requested policy restricts non-proxied UDP, not all host candidates. mDNS .local candidates are host candidates, not evidence of a public IP leak. Host count alone does not verify this policy or proxy routing' : (hasExpected(expected.webrtcPolicy) ? 'WebRTC policy does not explicitly block host candidates; showing actual collected value only' : 'No WebRTC expected value configured; showing actual collected value only')));
   rows.push(fingerprintRow('Media Device Count', 'Not used as expected', 'JS unreadable', 'unsupported', 'Standalone media device count parameter is ineffective in local Chrom-144 test and is not passed as runtime parameter', 'Known Ineffective'));
   rows.push(fingerprintRow('Canvas Noise', expected.canvasNoise, 'JS unreadable', expected.canvasNoise ? 'unreadable' : 'unknown', 'Canvas noise flag is passed as a launch parameter; page JS cannot read the flag directly. Check Canvas Hash stability for effect.'));
   rows.push(fingerprintRow('Audio Noise', 'Not used as expected', 'JS unreadable', 'unsupported', 'Standalone audio noise parameter is ineffective in local Chrom-144 test; observe audio changes through Seed and Audio Hash', 'Known Ineffective'));
@@ -1576,6 +1605,27 @@ function buildFingerprintRows(report, context) {
   rows.push(observedFingerprintRow('MIME Types', context, 'mimeTypes', '', report.advanced.mimeTypes, compareExactStatus, 'Compare MIME list'));
   rows.push(observedFingerprintRow('Screen Size', context, 'screenSize', '', report.screen.width + 'x' + report.screen.height, compareExactStatus, 'Compare screen size'));
   rows.push(observedFingerprintRow('DPR', context, 'devicePixelRatio', '', report.screen.devicePixelRatio, compareExactStatus, 'Compare DPR'));
+  // Metadata describes engine support, independently of the reported User-Agent.
+  // Generic language, timezone and window comparisons remain ordinary checks.
+  var configFields = {
+    'Fingerprint Seed': 'seed', 'Native Exposure Disabled': 'disableSpoofing',
+    'CPU Cores': 'hardwareConcurrency', 'Device Memory': 'deviceMemory',
+    'Touch Points': 'touchPoints', 'Do Not Track': 'doNotTrack', 'Color Depth': 'colorDepth',
+    'Brand': 'brand', 'Brand Version': 'brandVersion', 'Platform': 'platform',
+    'Platform Version': 'platformVersion', 'WebRTC Host': 'webrtcPolicy',
+    'Media Device Count': 'mediaDevices', 'Canvas Noise': 'canvasNoise',
+    'Audio Noise': 'audioNoise', 'ClientRects Noise': 'clientRectsNoise',
+    'Detected Fonts': 'fontList', 'WebGL Vendor': 'webglVendor', 'WebGL Renderer': 'webglRenderer'
+  };
+  var unsupportedFields = context && Array.isArray(context.unsupportedFields) ? context.unsupportedFields : [];
+  rows.forEach(function (row) {
+    var field = configFields[row.name];
+    if (!field || unsupportedFields.indexOf(field) < 0) return;
+    row.expected = expected[field];
+    row.status = 'unsupported';
+    row.source = 'Engine Unsupported';
+    row.reason = 'SunBrowser proprietary fingerprint configuration is not mapped; native hardware and rendering values are retained automatically, and Ant seed/noise switches are omitted';
+  });
   return rows;
 }
 function shouldShowReason(status) {
@@ -1669,6 +1719,54 @@ function proxySourceDetails(info) {
   if (!lines.length) return escapeHtml(uiText('No source detail'));
   return '<span class="proxy-source-list">' + lines.map(function (line) { return escapeHtml(line); }).join('<br>') + '</span>';
 }
+function normalizeEgressIP(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  var ip = value.trim();
+  function ipv4(text) {
+    var parts = text.split('.');
+    return parts.length === 4 && parts.every(function (part) {
+      return /^(0|[1-9][0-9]{0,2})$/.test(part) && Number(part) <= 255;
+    });
+  }
+  if (ipv4(ip)) return { ip: ip, family: 'ipv4' };
+  if (ip[0] === '[' && ip[ip.length - 1] === ']') ip = ip.slice(1, -1);
+  if (ip.indexOf(':') < 0 || !/^[0-9a-fA-F:.]+$/.test(ip)) return null;
+  if (ip.indexOf('.') >= 0 && !ipv4(ip.slice(ip.lastIndexOf(':') + 1))) return null;
+  try {
+    var canonical = new URL('http://[' + ip + ']/').hostname.slice(1, -1).toLowerCase();
+    // IPv4-mapped IPv6 is the same IPv4 endpoint, not a separate dual-stack exit.
+    var mapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(canonical);
+    if (mapped) {
+      var high = parseInt(mapped[1], 16), low = parseInt(mapped[2], 16);
+      return { ip: [high >> 8, high & 255, low >> 8, low & 255].join('.'), family: 'ipv4' };
+    }
+    return { ip: canonical, family: 'ipv6' };
+  } catch (error) { return null; }
+}
+function compareAutoEnvironmentEgress(context, proxyInfo) {
+  var auto = context && context.autoEnvironment ? context.autoEnvironment : {};
+  var actualIP = proxyInfo && typeof proxyInfo.ip === 'string' ? proxyInfo.ip : '';
+  var actual = normalizeEgressIP(actualIP);
+  var expectedIP = actual && actual.family === 'ipv4' && typeof auto.observedIPv4 === 'string' && auto.observedIPv4.trim() ? auto.observedIPv4 : (typeof auto.ip === 'string' ? auto.ip : '');
+  var expected = normalizeEgressIP(expectedIP);
+  var result = {
+    status: 'unavailable', expectedIP: expectedIP, actualIP: actualIP,
+    expectedFamily: expected ? expected.family : '', actualFamily: actual ? actual.family : '',
+    reason: 'Missing or invalid auto-environment or browser IP'
+  };
+  if (!expected || !actual) return result;
+  if (expected.family !== actual.family) {
+    result.status = 'cross-family';
+    result.reason = 'Different IP families; not a mismatch or proof of a leak';
+  } else if (expected.ip === actual.ip) {
+    result.status = 'match';
+    result.reason = 'Expected and browser IPs match';
+  } else {
+    result.status = 'same-family-different';
+    result.reason = 'Same-family IPs differ; investigate rotating exits, proxy routing or cache; not automatically a leak';
+  }
+  return result;
+}
 function renderProxyCheck(report) {
   var proxy = latestContext && latestContext.proxy ? latestContext.proxy : {};
   var network = report && report.network ? report.network : {};
@@ -1676,6 +1774,9 @@ function renderProxyCheck(report) {
   var configStatus = proxy.direct ? 'warn' : (proxy.configured ? 'ok' : 'warn');
   var configText = proxy.direct ? 'Direct' : (proxy.configured ? 'Configured' : 'No proxy configured');
   var exit = proxyExitStatus(info);
+  var comparison = report.egressComparison || compareAutoEnvironmentEgress(latestContext, info);
+  var comparisonLabels = { 'match': 'Egress Match', 'same-family-different': 'Same-family Different', 'cross-family': 'Cross-family Observation', 'unavailable': 'Comparison Unavailable' };
+  var comparisonText = uiText(comparisonLabels[comparison.status]) + ' — ' + uiText(comparison.reason);
   var configLines = [
     proxyStatusLine('Status', configText, configStatus),
     proxyLine('Name', proxy.proxyName || proxy.proxyId || '-'),
@@ -1687,6 +1788,7 @@ function renderProxyCheck(report) {
   var exitLines = [
     proxyStatusLine('Status', exit.text, exit.status),
     proxyLine('Current IP', info.ip || '-'),
+    proxyLine('Auto-environment Egress', comparisonText),
     proxyLine('Location', proxyLocationText(info)),
     proxyLine('Confidence', info.ok ? uiText(info.confidence || 'Single Source') : '-'),
     proxyLine('ASN/Network', proxyNetworkText(info)),
@@ -1777,6 +1879,10 @@ function render(report) {
   updateUILanguage(report);
   var rows = buildFingerprintRows(report, latestContext);
   report.rows = rows;
+  report.autoEnvironment = latestContext && latestContext.autoEnvironment ? latestContext.autoEnvironment : null;
+  report.egressComparison = compareAutoEnvironmentEgress(latestContext, report.network && report.network.proxyInfo);
+  report.engine = latestContext && latestContext.engine ? latestContext.engine : '';
+  report.unsupportedFields = latestContext && Array.isArray(latestContext.unsupportedFields) ? latestContext.unsupportedFields.slice() : [];
   renderMeta(report);
   document.getElementById('summary').innerHTML = '';
   renderChangeComparison(report);

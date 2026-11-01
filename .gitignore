@@ -1,6 +1,7 @@
-﻿# OS
+# OS
 .DS_Store
 Thumbs.db
+.metadata_never_index
 
 # IDE / Editor
 .vscode/

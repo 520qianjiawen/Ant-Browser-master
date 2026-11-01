@@ -112,7 +112,7 @@ export function Table<T extends Record<string, any>>({
               <th
                 key={col.key}
                 className={clsx(
-                  'whitespace-nowrap px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider bg-[var(--color-bg-muted)]',
+                  'whitespace-nowrap px-4 py-2.5 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider bg-[var(--color-bg-muted)]',
                   col.align === 'center' && 'text-center',
                   col.align === 'right' && 'text-right',
                   !col.align && 'text-left',
@@ -152,7 +152,7 @@ export function Table<T extends Record<string, any>>({
               <tr
                 key={getRowKey(record, index)}
                 className={clsx(
-                  'hover:bg-[var(--color-bg-muted)]/50 transition-colors duration-150',
+                  'hover:bg-[var(--color-bg-muted)]/60 transition-colors duration-100',
                   onRowClick && 'cursor-pointer'
                 )}
                 onClick={() => onRowClick?.(record)}

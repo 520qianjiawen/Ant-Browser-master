@@ -70,6 +70,12 @@ func (a *App) startBrowserProfileWithPlan(input browserStartInput, plan *browser
 	for attempt := 1; attempt <= plan.maxStartAttempts; attempt++ {
 		stableDebugPort, readyErr := waitBrowserDebugPortStable(plan.assignedDebugPort, plan.userDataDir, plan.startReadyTimeout, plan.startStableWindow, monitor)
 		if readyErr == nil {
+			if autoErr := a.applySunBrowserAutomaticRuntime(profile, stableDebugPort); autoErr != nil {
+				_ = a.stopProcessCmd(cmd)
+				stopSunBrowserAutoLocale(stableDebugPort)
+				profile.LastError = autoErr.Error()
+				return profile, autoErr
+			}
 			a.markProfileRunningLocked(input.ProfileID, profile, cmd, cmd.Process.Pid, stableDebugPort, true, "")
 			if plan.extensionWarning != "" {
 				profile.RuntimeWarning = plan.extensionWarning

@@ -13,7 +13,7 @@ import (
 )
 
 var startBrowserWindowProcess = func(chromeBinaryPath string, args []string) (*exec.Cmd, error) {
-	cmd := exec.Command(chromeBinaryPath, args...)
+	cmd := exec.Command(chromeBinaryPath, browser.AdaptCoreLaunchArgs(chromeBinaryPath, args)...)
 	cmd.Dir = filepath.Dir(chromeBinaryPath)
 	if err := cmd.Start(); err != nil {
 		return nil, err

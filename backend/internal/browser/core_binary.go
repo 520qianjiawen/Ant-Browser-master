@@ -18,6 +18,7 @@ func CoreExecutableCandidates() []string {
 		return []string{
 			"Google Chrome.app/Contents/MacOS/Google Chrome",
 			"Chromium.app/Contents/MacOS/Chromium",
+			"SunBrowser.app/Contents/MacOS/SunBrowser",
 			"chrome",
 		}
 	default:

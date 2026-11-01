@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"ant-chrome/backend/internal/browser"
 	"fmt"
 	"runtime"
 	"strconv"
@@ -139,6 +140,11 @@ func (a *App) buildBrowserFingerprintCapabilityReport(profileId string, coreId s
 	}
 
 	plan := buildBrowserFingerprintLaunchPlan(profileId, fingerprintArgs, chromeVersion)
+	if coreFound {
+		if exe, _, ok := browser.FindCoreExecutable(a.browserMgr.ResolveRelativePath(core.CorePath)); ok && browser.IsSunBrowserExecutable(exe) {
+			plan = sunBrowserFingerprintLaunchPlan(plan)
+		}
+	}
 	report := BrowserFingerprintCapabilityReport{
 		ProfileId:     profileId,
 		ChromeVersion: chromeVersion,

@@ -38,6 +38,7 @@ type browserStartPlan struct {
 	startStableWindow    time.Duration
 	maxStartAttempts     int
 	totalReadyTimeout    time.Duration
+	autoLocation         *sunBrowserAutoLocation
 }
 
 var clearBrowserSessionRestoreData = browser.ClearSessionRestoreData
@@ -96,6 +97,11 @@ func (a *App) resolveBrowserStartProfile(input browserStartInput) (*BrowserProfi
 		return profile, false, nil
 	}
 
+	if err := a.ensureRunningSunBrowserAutomaticRuntime(profile); err != nil {
+		profile.LastError = err.Error()
+		return profile, true, err
+	}
+
 	if len(normalizeNonEmptyStrings(input.StartURLs)) == 0 && len(normalizeNonEmptyStrings(input.ExtraLaunchArgs)) == 0 {
 		if a.launchServer != nil && profile.DebugReady {
 			a.launchServer.SetActiveProfile(profile)
@@ -137,10 +143,50 @@ func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserP
 		return nil, err
 	}
 
+	var autoLocation *sunBrowserAutoLocation
+	if browser.IsSunBrowserExecutable(chromeBinaryPath) {
+		location, autoErr := resolveSunBrowserAutoLocation(effectiveProxy)
+		if autoErr != nil {
+			if releaseProxyBridge {
+				a.releaseProxyBridgeRef(acquiredProxyBridge)
+			}
+			profile.LastError = autoErr.Error()
+			return nil, autoErr
+		}
+		combined := append(append(append([]string{}, fingerprintLaunchArgs...), sanitizedProfileLaunchArgs...), sanitizedExtraLaunchArgs...)
+		combined = browser.FilterSunBrowserFingerprintArgs(replaceSunBrowserAutoArgs(combined, location))
+		combined, autoErr = sunBrowserAutoWindowArgs(combined)
+		if autoErr == nil {
+			if bounds, boundsErr := sunBrowserAutoWindowBounds(); boundsErr == nil {
+				location.Window = &bounds
+			}
+		}
+		if autoErr == nil {
+			autoErr = writeBrowserLanguagePreferences(userDataDir, combined)
+		}
+		if autoErr == nil {
+			autoErr = a.writeSunBrowserAutoState(profile.ProfileId, location)
+		}
+		if autoErr != nil {
+			if releaseProxyBridge {
+				a.releaseProxyBridgeRef(acquiredProxyBridge)
+			}
+			profile.LastError = fmt.Sprintf("自动环境准备失败: %v", autoErr)
+			return nil, fmt.Errorf("%s", profile.LastError)
+		}
+		fingerprintLaunchArgs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs = combined, nil, nil
+		autoLocation = &location
+	}
+
 	startReadyTimeout, startStableWindow := a.browserStartTimingSettings()
 	maxStartAttempts := browserStartAttemptCount()
 	totalReadyTimeout := time.Duration(maxStartAttempts) * startReadyTimeout
 	restoreLastSession := profileRestoreLastSession(profile, a.config)
+	if autoLocation != nil {
+		// Start with a blank page; locale must be installed before any target URL.
+		// Stored session data is retained for manual restoration after startup.
+		restoreLastSession = false
+	}
 	fingerprintExpectedArgs := combineFingerprintExpectedArgs(fingerprintLaunchArgs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs)
 	defaultStartURLs := a.resolveFingerprintCheckStartURLsForExpectedArgsAndProfile(profile.ProfileId, fingerprintExpectedArgs, profile, mergeStartURLs(browserDefaultStartURLs(a.config), bookmarkStartURLs(bookmarks)))
 	startURLs := a.resolveFingerprintCheckStartURLsForExpectedArgsAndProfile(profile.ProfileId, fingerprintExpectedArgs, profile, input.StartURLs)
@@ -151,6 +197,17 @@ func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserP
 		restoreLastSession,
 		browserLightStartEnabled(a.config),
 	)
+
+	if autoLocation != nil {
+		var requested []string
+		for _, target := range append(append([]string{}, launchTargets...), deferredStartTargets...) {
+			if target != "about:blank" {
+				requested = append(requested, target)
+			}
+		}
+		deferredStartTargets = mergeStartURLs(requested)
+		launchTargets = []string{"about:blank"}
+	}
 
 	assignedDebugPort, err := nextAvailablePort()
 	if err != nil {
@@ -167,11 +224,11 @@ func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserP
 		return nil, startErr
 	}
 
-	instanceArgs := buildBrowserLaunchArgs(userDataDir, assignedDebugPort, effectiveProxy, fingerprintLaunchArgs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, launchTargets, restoreLastSession)
+	instanceArgs := browser.AdaptCoreLaunchArgs(chromeBinaryPath, buildBrowserLaunchArgs(userDataDir, assignedDebugPort, effectiveProxy, fingerprintLaunchArgs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, launchTargets, restoreLastSession))
 	// 插件持久安装助手进程复用实例的调试端口与代理/指纹参数：
 	// 若此时实例浏览器尚未运行，安装助手进程就是实例浏览器本身，
 	// 缺少调试端口会导致后续正式启动被 Chrome 单实例交接、误报“就绪前退出”。
-	extensionInstallArgs := buildBrowserLaunchArgs(userDataDir, assignedDebugPort, effectiveProxy, fingerprintLaunchArgs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, nil, restoreLastSession)
+	extensionInstallArgs := browser.AdaptCoreLaunchArgs(chromeBinaryPath, buildBrowserLaunchArgs(userDataDir, assignedDebugPort, effectiveProxy, fingerprintLaunchArgs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, nil, restoreLastSession))
 	extensionLaunchArgs, extensionWarnings := a.browserMgr.PrepareProfileExtensions(profile, chromeBinaryPath, userDataDir, extensionInstallArgs)
 	if len(extensionLaunchArgs) > 0 {
 		instanceArgs = append(instanceArgs, extensionLaunchArgs...)
@@ -194,6 +251,7 @@ func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserP
 		startStableWindow:    startStableWindow,
 		maxStartAttempts:     maxStartAttempts,
 		totalReadyTimeout:    totalReadyTimeout,
+		autoLocation:         autoLocation,
 	}, nil
 }
 
@@ -288,6 +346,10 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 			logger.F("pid", detection.PID),
 			logger.F("debug_port", detection.DebugPort),
 		)
+		if err := a.ensureRunningSunBrowserAutomaticRuntime(profile); err != nil {
+			profile.LastError = err.Error()
+			return nil, nil, nil, "", "", err
+		}
 		if len(normalizeNonEmptyStrings(input.StartURLs)) == 0 && len(normalizeNonEmptyStrings(input.ExtraLaunchArgs)) == 0 {
 			return nil, nil, nil, "", "", errBrowserStartHandledByRecoveredRuntime
 		}

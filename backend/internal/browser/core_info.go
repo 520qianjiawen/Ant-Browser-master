@@ -2,6 +2,8 @@ package browser
 
 import (
 	"encoding/json"
+	"encoding/xml"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +17,9 @@ func (m *Manager) GetChromeVersion(corePath string) string {
 	}
 
 	baseDir := m.ResolveRelativePath(corePath)
+	if version := coreAppBundleVersion(baseDir); version != "" {
+		return version
+	}
 
 	// 尝试读取 manifest.json 或 *.manifest 文件
 	manifestPath := filepath.Join(baseDir, "manifest.json")
@@ -42,6 +47,45 @@ func (m *Manager) GetChromeVersion(corePath string) string {
 	}
 
 	return manifest.Version
+}
+
+// coreAppBundleVersion reads metadata without executing a browser. XML plists
+// are supported; unknown/binary formats fall back to the existing manifests.
+func coreAppBundleVersion(corePath string) string {
+	exe, _, ok := FindCoreExecutableShallow(corePath)
+	if !ok || filepath.Base(filepath.Dir(exe)) != "MacOS" {
+		return ""
+	}
+	file, err := os.Open(filepath.Join(filepath.Dir(filepath.Dir(exe)), "Info.plist"))
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+	decoder := xml.NewDecoder(io.LimitReader(file, 1024*1024))
+	wantVersion := false
+	for {
+		token, err := decoder.Token()
+		if err != nil {
+			return ""
+		}
+		start, ok := token.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		if start.Name.Local == "key" {
+			var key string
+			if decoder.DecodeElement(&key, &start) != nil {
+				return ""
+			}
+			wantVersion = key == "CFBundleShortVersionString"
+		} else if wantVersion && start.Name.Local == "string" {
+			var version string
+			if decoder.DecodeElement(&version, &start) != nil {
+				return ""
+			}
+			return strings.TrimSpace(version)
+		}
+	}
 }
 
 // CountInstancesByCore 统计使用指定内核的实例数量

@@ -97,6 +97,43 @@ export async function redownloadBrowserCore(coreId: string, url: string, proxyCo
   return true
 }
 
+export interface SunBrowserKernelInfo {
+  available: boolean
+  version: string
+  downloadUrl: string
+  fileMd5: string
+  sizeMb: string
+  system: string
+  coreName: string
+  message: string
+}
+
+export async function fetchSunBrowserKernelInfo(proxyConfig?: string): Promise<SunBrowserKernelInfo> {
+  const bindings: any = await getBindings()
+  if (bindings?.SunBrowserKernelInfo) {
+    return (await bindings.SunBrowserKernelInfo(proxyConfig || '')) as SunBrowserKernelInfo
+  }
+  return {
+    available: false,
+    version: '',
+    downloadUrl: '',
+    fileMd5: '',
+    sizeMb: '',
+    system: '',
+    coreName: 'SunBrowser 152',
+    message: '当前环境不支持一键下载',
+  }
+}
+
+export async function downloadSunBrowserKernel(proxyConfig?: string): Promise<boolean> {
+  const bindings: any = await getBindings()
+  if (bindings?.SunBrowserKernelDownload) {
+    await bindings.SunBrowserKernelDownload(proxyConfig || '')
+    return true
+  }
+  return false
+}
+
 export async function openCorePath(corePath: string): Promise<boolean> {
   const bindings: any = await getBindings()
   if (bindings?.OpenCorePath) {

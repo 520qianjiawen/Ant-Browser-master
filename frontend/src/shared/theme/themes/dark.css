@@ -25,7 +25,8 @@
   --color-error: #f87171;
   --color-info: #60a5fa;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.6);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 1px 1px -0.5px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 2px 4px -1px rgb(0 0 0 / 0.4), 0 5px 12px -3px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 4px 8px -2px rgb(0 0 0 / 0.45), 0 12px 24px -6px rgb(0 0 0 / 0.55);
+  --shadow-xl: 0 8px 16px -4px rgb(0 0 0 / 0.5), 0 20px 40px -8px rgb(0 0 0 / 0.65);
 }

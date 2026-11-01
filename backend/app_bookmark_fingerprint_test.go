@@ -3,8 +3,11 @@ package backend
 import (
 	"ant-chrome/backend/internal/browser"
 	"ant-chrome/backend/internal/config"
+	"ant-chrome/backend/internal/database"
 	"net/url"
 	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -45,6 +48,106 @@ func TestBookmarkSaveKeepsFingerprintCheckOpenOnStart(t *testing.T) {
 	list := app.BookmarkList()
 	if len(list) == 0 || list[0].URL != fingerprintCheckBookmarkURL || !list[0].OpenOnStart {
 		t.Fatalf("first bookmark = %#v, want protected fingerprint check with openOnStart", list)
+	}
+}
+
+func TestNormalizeBookmarksDoesNotRestoreOptionalSites(t *testing.T) {
+	user := BrowserBookmark{Name: "My bookmark", URL: "https://example.com/custom", OpenOnStart: true}
+	fingerprint := BrowserBookmark{Name: "指纹检测", URL: fingerprintCheckBookmarkURL, OpenOnStart: true}
+	for _, optional := range []string{"", "https://ping0.cc/", "https://iplark.com/"} {
+		items := []BrowserBookmark{user, fingerprint}
+		want := []BrowserBookmark{fingerprint, user}
+		if optional != "" {
+			bookmark := BrowserBookmark{Name: "Custom site name", URL: optional, OpenOnStart: true}
+			items = append(items, bookmark)
+			want = append(want, bookmark)
+		}
+		if got := normalizeBookmarkList(items); !reflect.DeepEqual(got, want) {
+			t.Fatalf("normalized = %#v, want %#v", got, want)
+		}
+	}
+}
+
+func TestBookmarkOptionalSitesPersistence(t *testing.T) {
+	for _, storage := range []string{"yaml", "sqlite"} {
+		t.Run(storage, func(t *testing.T) {
+			root := t.TempDir()
+			app := NewApp(root)
+			app.config = &config.Config{}
+			app.browserMgr = browser.NewManager(app.config, root)
+			dbPath := filepath.Join(root, "bookmarks.db")
+			var db *database.DB
+			openDB := func() {
+				t.Helper()
+				var err error
+				db, err = database.NewDB(dbPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := db.Migrate(); err != nil {
+					t.Fatal(err)
+				}
+				app.browserMgr.BookmarkDAO = browser.NewSQLiteBookmarkDAO(db.GetConn())
+			}
+			if storage == "sqlite" {
+				openDB()
+				t.Cleanup(func() { db.Close() })
+			}
+			reload := func() {
+				t.Helper()
+				if storage == "sqlite" {
+					if err := db.Close(); err != nil {
+						t.Fatal(err)
+					}
+					openDB()
+				} else {
+					var err error
+					app.config, err = config.Load(filepath.Join(root, "config.yaml"))
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			assertDefaults := func() {
+				t.Helper()
+				list := app.BookmarkList()
+				if !reflect.DeepEqual(list, defaultBookmarkList) {
+					t.Fatalf("defaults = %#v, want %#v", list, defaultBookmarkList)
+				}
+				if len(list) == 0 || list[0].URL != fingerprintCheckBookmarkURL {
+					t.Fatalf("fingerprint bookmark not first: %#v", list)
+				}
+				for _, item := range list {
+					if item.URL == "https://ping0.cc/" || item.URL == "https://iplark.com/" {
+						t.Fatalf("optional site restored in defaults: %#v", item)
+					}
+				}
+			}
+			assertDefaults()
+			fingerprint := BrowserBookmark{Name: "指纹检测", URL: fingerprintCheckBookmarkURL, OpenOnStart: true}
+			user := BrowserBookmark{Name: "My bookmark", URL: "https://example.com/custom", OpenOnStart: true}
+			for _, optional := range []string{"", "https://ping0.cc/", "https://iplark.com/", ""} {
+				items := []BrowserBookmark{user, fingerprint}
+				want := []BrowserBookmark{fingerprint, user}
+				if optional != "" {
+					bookmark := BrowserBookmark{Name: "My optional site", URL: optional, OpenOnStart: true}
+					items = append(items, bookmark)
+					want = append(want, bookmark)
+				}
+				if err := app.BookmarkSave(items); err != nil {
+					t.Fatal(err)
+				}
+				reload()
+				if got := app.BookmarkList(); !reflect.DeepEqual(got, want) {
+					t.Fatalf("persisted bookmarks = %#v, want %#v", got, want)
+				}
+			}
+			if err := app.BookmarkReset(); err != nil {
+				t.Fatal(err)
+			}
+			reload()
+			assertDefaults()
+		})
 	}
 }
 

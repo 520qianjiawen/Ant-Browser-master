@@ -3,7 +3,7 @@ import { Check, Cpu, FolderOpen, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import { Badge, Button, Card, ConfirmModal, Table, toast } from '../../../shared/components'
 import type { TableColumn } from '../../../shared/components/Table'
 import type { BrowserCore, BrowserCoreInput, BrowserCoreValidateResult, BrowserSettings, BrowserCoreExtended, BrowserProxy } from '../types'
-import { fetchBrowserCores, saveBrowserCore, deleteBrowserCore, setDefaultBrowserCore, validateBrowserCorePath, openCorePath, fetchBrowserSettings, saveBrowserSettings, fetchCoreExtendedInfo, scanBrowserCores, importLocalBrowserCore, BrowserCoreDownload, fetchBrowserProxies, redownloadBrowserCore } from '../api'
+import { fetchBrowserCores, saveBrowserCore, deleteBrowserCore, setDefaultBrowserCore, validateBrowserCorePath, openCorePath, fetchBrowserSettings, saveBrowserSettings, fetchCoreExtendedInfo, scanBrowserCores, importLocalBrowserCore, BrowserCoreDownload, fetchBrowserProxies, redownloadBrowserCore, fetchSunBrowserKernelInfo, downloadSunBrowserKernel } from '../api'
 import { Environment, EventsOn, EventsOff } from '../../../wailsjs/runtime/runtime'
 import { CoreDownloadModal } from './coreManagement/CoreDownloadModal'
 import { CoreEditModal } from './coreManagement/CoreEditModal'
@@ -68,6 +68,7 @@ export function CoreManagementPage() {
   const [downloadRecommendationError, setDownloadRecommendationError] = useState('')
   const [importProgress, setImportProgress] = useState<CoreDownloadProgress | null>(null)
   const [proxies, setProxies] = useState<BrowserProxy[]>([])
+  const [sunKernelStarting, setSunKernelStarting] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -418,6 +419,41 @@ export function CoreManagementPage() {
     void loadCoreDownloadRecommendation()
   }
 
+  // SunBrowser 一键下载：先查最新版本信息，确认后走标准下载管线
+  const handleSunBrowserOneClick = async () => {
+    if (sunKernelStarting) return
+    setSunKernelStarting(true)
+    setDownloadProgress({ phase: 'starting', progress: 0, message: '正在查询 SunBrowser 最新内核...' })
+    try {
+      const info = await fetchSunBrowserKernelInfo('__system__')
+      if (!info.available) {
+        setDownloadProgress(null)
+        toast.error(info.message || '未获取到可用内核')
+        return
+      }
+      // 检查是否已安装同名内核
+      const installed = displayList.some(c => c.coreName.toLowerCase() === info.coreName.toLowerCase())
+      const confirmText = installed
+        ? `检测到已存在内核「${info.coreName}」\n\n最新版本: ${info.version}\n大小: ${info.sizeMb || '未知'}\n校验: MD5 ${info.fileMd5 || '官方未提供'}\n\n是否重新下载并覆盖更新内核？`
+        : `发现 SunBrowser 内核最新版\n\n版本: ${info.version}\n大小: ${info.sizeMb || '未知'}\n校验: MD5 ${info.fileMd5 || '官方未提供'}\n\n将自动下载、校验 MD5 并注册为「${info.coreName}」，继续吗？`
+
+      const ok = window.confirm(confirmText)
+      if (!ok) {
+        setDownloadProgress(null)
+        setSunKernelStarting(false)
+        return
+      }
+      setDownloadProgress({ phase: 'downloading', progress: 0, message: `开始下载 SunBrowser ${info.version}...` })
+      await downloadSunBrowserKernel('__system__')
+      // 进度由 download:progress 事件驱动；done 分支统一刷新
+    } catch (err: any) {
+      setDownloadProgress(null)
+      toast.error(err?.message || 'SunBrowser 一键下载失败')
+    } finally {
+      setSunKernelStarting(false)
+    }
+  }
+
   // 保存内核
   const handleSaveCore = async () => {
     if (!editForm.coreName.trim()) {
@@ -570,6 +606,9 @@ export function CoreManagementPage() {
           <p className="text-sm text-[var(--color-text-muted)] mt-1">管理 Chrome 内核版本和全局设置</p>
         </div>
         <div className="flex gap-2">
+          <Button size="sm" variant="secondary" onClick={handleSunBrowserOneClick} loading={sunKernelStarting}>
+            一键下载 SunBrowser
+          </Button>
           <Button size="sm" variant="secondary" onClick={handleOpenDownload}>下载内核</Button>
           <Button size="sm" variant="secondary" onClick={handleImportLocal} loading={importing}>导入本地</Button>
           <Button size="sm" variant="secondary" onClick={handleScan} loading={scanning}>扫描内核</Button>
@@ -581,6 +620,16 @@ export function CoreManagementPage() {
         <div className="flex items-center justify-between rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm">
           <span className="text-[var(--color-text-secondary)]">{importProgress.message}</span>
           <span className="text-[var(--color-text-muted)]">{Math.max(0, Math.min(100, importProgress.progress))}%</span>
+        </div>
+      )}
+
+      {downloadProgress && !downloadModalOpen && (
+        <div className="flex items-center justify-between rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-4 h-4 border-2 border-[var(--color-border-default)] border-t-[var(--color-accent)] rounded-full animate-spin flex-shrink-0" />
+            <span className="text-[var(--color-text-secondary)] font-medium">{downloadProgress.message}</span>
+          </div>
+          <span className="text-[var(--color-text-muted)] font-mono">{Math.max(0, Math.min(100, downloadProgress.progress))}%</span>
         </div>
       )}
 

@@ -2,7 +2,10 @@ package browser
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,6 +20,11 @@ import (
 
 // DownloadAndExtractCore 执行异步下载解压并在过程中发送事件
 func (m *Manager) DownloadAndExtractCore(ctx context.Context, coreName string, targetUrl string, proxyConfig string) {
+	m.DownloadAndExtractCoreWithMD5(ctx, coreName, targetUrl, proxyConfig, "")
+}
+
+// DownloadAndExtractCoreWithMD5 执行异步下载并在解压前执行可选的 MD5 完整性校验
+func (m *Manager) DownloadAndExtractCoreWithMD5(ctx context.Context, coreName string, targetUrl string, proxyConfig string, expectedMD5 string) {
 	coreName = strings.TrimSpace(coreName)
 	for _, core := range m.ListCores() {
 		if strings.EqualFold(core.CoreName, coreName) || filepath.Base(core.CorePath) == coreName {
@@ -25,15 +33,20 @@ func (m *Manager) DownloadAndExtractCore(ctx context.Context, coreName string, t
 				CoreName:  core.CoreName,
 				CorePath:  core.CorePath,
 				IsDefault: core.IsDefault,
-			}, targetUrl, proxyConfig, false)
+			}, targetUrl, proxyConfig, false, expectedMD5)
 			return
 		}
 	}
-	m.downloadAndExtractCore(ctx, CoreInput{CoreName: coreName}, targetUrl, proxyConfig, false)
+	m.downloadAndExtractCore(ctx, CoreInput{CoreName: coreName}, targetUrl, proxyConfig, false, expectedMD5)
 }
 
 // RedownloadCore 重新下载指定内核，验证成功后替换原目录并保留原配置。
 func (m *Manager) RedownloadCore(ctx context.Context, coreId string, targetUrl string, proxyConfig string) {
+	m.RedownloadCoreWithMD5(ctx, coreId, targetUrl, proxyConfig, "")
+}
+
+// RedownloadCoreWithMD5 重新下载指定内核并在解压前执行可选的 MD5 完整性校验
+func (m *Manager) RedownloadCoreWithMD5(ctx context.Context, coreId string, targetUrl string, proxyConfig string, expectedMD5 string) {
 	core, ok := m.GetCore(coreId)
 	if !ok {
 		m.emitRuntimeEvent(ctx, "download:progress", DownloadProgress{Phase: "error", Progress: 0, Message: "内核不存在"})
@@ -44,10 +57,10 @@ func (m *Manager) RedownloadCore(ctx context.Context, coreId string, targetUrl s
 		CoreName:  core.CoreName,
 		CorePath:  core.CorePath,
 		IsDefault: core.IsDefault,
-	}, targetUrl, proxyConfig, true)
+	}, targetUrl, proxyConfig, true, expectedMD5)
 }
 
-func (m *Manager) downloadAndExtractCore(ctx context.Context, coreInput CoreInput, targetUrl string, proxyConfig string, replaceExisting bool) {
+func (m *Manager) downloadAndExtractCore(ctx context.Context, coreInput CoreInput, targetUrl string, proxyConfig string, replaceExisting bool, expectedMD5 string) {
 	log := logger.New("Browser")
 	t := time.Now()
 
@@ -161,6 +174,21 @@ func (m *Manager) downloadAndExtractCore(ctx context.Context, coreInput CoreInpu
 	}
 
 	tempFile.Close() // 解压前先关闭写句柄
+
+	if trimmedMD5 := strings.TrimSpace(expectedMD5); trimmedMD5 != "" {
+		sendEvent("extracting", 0, "正在校验下载文件的 MD5 完整性...")
+		match, actualMD5, err := verifyCoreArchiveMD5(tempFilePath, trimmedMD5)
+		if err != nil {
+			sendEvent("error", 0, "校验文件 MD5 失败: "+err.Error())
+			return
+		}
+		if !match {
+			sendEvent("error", 0, fmt.Sprintf("内核包 MD5 校验不匹配（期望 %s，实际 %s），文件可能已损坏", trimmedMD5, actualMD5))
+			return
+		}
+		log.Info("内核包 MD5 校验通过", logger.F("md5", actualMD5))
+	}
+
 	sendEvent("extracting", 0, "下载完成，正在准备解压文件...")
 	log.Info("内核下载完成", logger.F("url", targetUrl), logger.F("temp", tempFilePath), logger.F("cost", time.Since(t).String()))
 
@@ -257,4 +285,19 @@ func replaceCoreDirectory(targetDir string, tempExtractDir string, replaceExisti
 		_ = os.RemoveAll(backupDir)
 	}
 	return nil
+}
+
+func verifyCoreArchiveMD5(filePath, expectedMD5 string) (bool, string, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return false, "", err
+	}
+	defer f.Close()
+
+	h := md5.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return false, "", err
+	}
+	actual := hex.EncodeToString(h.Sum(nil))
+	return strings.EqualFold(actual, strings.TrimSpace(expectedMD5)), actual, nil
 }

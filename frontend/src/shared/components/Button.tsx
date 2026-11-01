@@ -17,12 +17,12 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
-  
+  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-[background-color,border-color,box-shadow,transform,color] duration-150 ease-[var(--ease-out-quart)] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
+
   const variants = {
-    primary: 'bg-[var(--color-accent)] text-[var(--color-text-inverse)] hover:opacity-90 focus-visible:ring-[var(--color-accent)]',
-    secondary: 'bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] hover:bg-[var(--color-bg-muted)] hover:border-[var(--color-border-strong)] focus-visible:ring-[var(--color-border-strong)]',
-    danger: 'bg-[var(--color-error)] text-white hover:opacity-90 focus-visible:ring-[var(--color-error)]',
+    primary: 'bg-[var(--color-accent)] text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)] hover:bg-[var(--color-accent-hover)] hover:shadow-[var(--shadow-md)] focus-visible:ring-[var(--color-accent)]',
+    secondary: 'bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] shadow-[var(--shadow-xs)] hover:bg-[var(--color-bg-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] focus-visible:ring-[var(--color-border-strong)]',
+    danger: 'bg-[var(--color-error)] text-white shadow-[var(--shadow-sm)] hover:brightness-105 hover:shadow-[var(--shadow-md)] focus-visible:ring-[var(--color-error)]',
     ghost: 'text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-muted)] hover:text-[var(--color-text-primary)]',
   }
 

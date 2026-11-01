@@ -230,6 +230,13 @@ func (a *App) waitBrowserDebugReadyAsync(profileId string, debugPort int, timeou
 		return
 	}
 
+	if err := a.applySunBrowserAutomaticRuntime(snapshot, debugPort); err != nil {
+		if warning, _ := a.setProfileRuntimeWarningForMonitor(profileId, debugPort, err.Error(), monitor); warning != nil {
+			a.emitBrowserInstanceUpdated(warning)
+		}
+		return
+	}
+
 	if warningSnapshot, warningChanged := a.finalizeDeferredStartTargetsForMonitor(profileId, debugPort, monitor); warningSnapshot != nil {
 		snapshot = warningSnapshot
 		changed = changed || warningChanged

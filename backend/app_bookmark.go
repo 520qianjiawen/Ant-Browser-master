@@ -25,14 +25,6 @@ var defaultBookmarkList = []BrowserBookmark{
 	{Name: "Claude", URL: "https://claude.ai/"},
 	{Name: "ChatGPT", URL: "https://chatgpt.com/"},
 	{Name: "YouTube", URL: "https://www.youtube.com/"},
-	{Name: "IPLark", URL: "https://iplark.com/"},
-	{Name: "Ping0", URL: "https://ping0.cc/"},
-}
-
-var verificationBookmarkList = []BrowserBookmark{
-	{Name: "指纹检测", URL: fingerprintCheckBookmarkURL},
-	{Name: "IPLark", URL: "https://iplark.com/"},
-	{Name: "Ping0", URL: "https://ping0.cc/"},
 }
 
 var protectedBookmarkList = []BrowserBookmark{
@@ -127,10 +119,7 @@ func normalizeBookmarkList(items []BrowserBookmark) []BrowserBookmark {
 		item.OpenOnStart = protectedOpenOnStart[item.URL]
 		protected = append(protected, item)
 	}
-	regular := make([]BrowserBookmark, 0, len(items)+len(verificationBookmarkList))
-	regular = append(regular, items...)
-	regular = append(regular, verificationBookmarkList...)
-	mergedRegular := mergeBookmarksByURL(regular, nil)
+	mergedRegular := mergeBookmarksByURL(items, nil)
 	out := append([]BrowserBookmark{}, protected...)
 	seen := map[string]struct{}{}
 	for _, item := range out {

@@ -30,6 +30,20 @@ func (m *Manager) GetCore(coreId string) (Core, bool) {
 	return Core{}, false
 }
 
+// GetCoreByName 根据内核名称查找内核配置
+func (m *Manager) GetCoreByName(coreName string) (Core, bool) {
+	coreName = strings.TrimSpace(coreName)
+	if coreName == "" {
+		return Core{}, false
+	}
+	for _, core := range m.ListCores() {
+		if strings.EqualFold(core.CoreName, coreName) {
+			return core, true
+		}
+	}
+	return Core{}, false
+}
+
 // GetDefaultCore 获取默认内核
 func (m *Manager) GetDefaultCore() (Core, bool) {
 	cores := m.ListCores()
@@ -79,6 +93,7 @@ func (m *Manager) ValidateCorePath(corePath string) CoreValidateResult {
 	if !ok {
 		return CoreValidateResult{Valid: false, Message: fmt.Sprintf("未找到浏览器可执行文件（候选：%s）", strings.Join(CoreExecutableCandidates(), ", "))}
 	}
+	_ = fsutil.EnsureExecutable(exePath)
 	if err := fsutil.ValidateExecutable(exePath); err != nil {
 		return CoreValidateResult{Valid: false, Message: fmt.Sprintf("浏览器可执行文件不可用：%v", err)}
 	}

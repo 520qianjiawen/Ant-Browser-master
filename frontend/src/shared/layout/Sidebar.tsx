@@ -111,15 +111,15 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 space-y-6 overflow-y-auto">
+      <nav className="flex-1 py-3 px-3 space-y-5 overflow-y-auto">
         {navigationConfig.map((section) => (
           <div key={section.title}>
             {!sidebarCollapsed && (
-              <h3 className="px-3 mb-2 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-widest">
+              <h3 className="px-3 mb-1.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-[0.08em]">
                 {section.title}
               </h3>
             )}
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = getIcon(item.icon);
                 const isActive =
@@ -133,18 +133,24 @@ export function Sidebar() {
                     to={item.path}
                     title={sidebarCollapsed ? item.name : undefined}
                     className={clsx(
-                      "flex items-center rounded-lg transition-all duration-150",
+                      "relative flex items-center rounded-lg transition-[background-color,color] duration-150 ease-[var(--ease-out-quart)]",
                       isActive
-                        ? "bg-[var(--color-accent)] text-[var(--color-text-inverse)] shadow-sm"
+                        ? "bg-[var(--color-accent)] text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)]"
                         : "text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-muted)] hover:text-[var(--color-text-primary)]",
                       sidebarCollapsed
                         ? "justify-center w-10 h-10 mx-auto"
-                        : "px-3 py-2.5 gap-3",
+                        : "px-3 py-2 gap-3",
                     )}
                   >
-                    <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                    <Icon className={clsx(
+                      "w-[18px] h-[18px] flex-shrink-0 transition-transform duration-150",
+                      !isActive && "group-hover:scale-105",
+                    )} />
                     {!sidebarCollapsed && (
-                      <span className="text-sm font-medium truncate">
+                      <span className={clsx(
+                        "text-sm truncate",
+                        isActive ? "font-semibold" : "font-medium",
+                      )}>
                         {item.name}
                       </span>
                     )}
