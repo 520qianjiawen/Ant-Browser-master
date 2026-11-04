@@ -23,6 +23,23 @@ func TestSunBrowserAutoLocationParsing(t *testing.T) {
 	}
 }
 
+func TestSunBrowserIPCoordinatesValidation(t *testing.T) {
+	for _, tc := range []struct {
+		input string
+		want  bool
+	}{
+		{`{"ip":"1.1.1.1","country_code":"US","timezone":"UTC","latitude":34.05,"longitude":-118.24}`, true},
+		{`{"ip":"1.1.1.1","country_code":"US","timezone":"UTC","latitude":0,"longitude":0}`, true},
+		{`{"ip":"1.1.1.1","country_code":"US","timezone":"UTC","latitude":91,"longitude":2}`, false},
+		{`{"ip":"1.1.1.1","country_code":"US","timezone":"UTC","latitude":2}`, false},
+	} {
+		got, err := parseSunBrowserAutoLocation(strings.NewReader(tc.input), "fixture")
+		if err != nil || (got.Latitude != nil && got.Longitude != nil) != tc.want {
+			t.Fatalf("coordinates: %#v err=%v", got, err)
+		}
+	}
+}
+
 func TestSunBrowserLocationFallbackUsesSameClient(t *testing.T) {
 	calls := 0
 	service := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

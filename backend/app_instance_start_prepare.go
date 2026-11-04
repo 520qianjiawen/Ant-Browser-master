@@ -155,6 +155,16 @@ func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserP
 		}
 		combined := append(append(append([]string{}, fingerprintLaunchArgs...), sanitizedProfileLaunchArgs...), sanitizedExtraLaunchArgs...)
 		combined = browser.FilterSunBrowserFingerprintArgs(replaceSunBrowserAutoArgs(combined, location))
+		core, coreOK := a.browserMgr.GetCore(profile.CoreId)
+		if !coreOK {
+			core, coreOK = a.browserMgr.GetDefaultCore()
+		}
+		coreVersion := ""
+		if coreOK {
+			coreVersion = a.browserMgr.GetChromeVersion(core.CorePath)
+		}
+		rawCanvasArgs := append(append(append([]string{}, profile.FingerprintArgs...), sanitizedProfileLaunchArgs...), sanitizedExtraLaunchArgs...)
+		combined, _ = sunCanvasAddLaunchArg(combined, rawCanvasArgs, profile.ProfileId, coreVersion)
 		combined, autoErr = sunBrowserAutoWindowArgs(combined)
 		if autoErr == nil {
 			if bounds, boundsErr := sunBrowserAutoWindowBounds(); boundsErr == nil {

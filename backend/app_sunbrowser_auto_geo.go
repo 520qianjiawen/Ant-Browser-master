@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"strings"
@@ -19,6 +20,8 @@ type sunBrowserAutoLocation struct {
 	ExitIPSource      string                  `json:"exitIPSource,omitempty"`
 	CountryCode       string                  `json:"countryCode"`
 	City              string                  `json:"city,omitempty"`
+	Latitude          *float64                `json:"latitude,omitempty"`
+	Longitude         *float64                `json:"longitude,omitempty"`
 	Language          string                  `json:"language"`
 	AcceptLanguage    string                  `json:"acceptLanguage"`
 	Timezone          string                  `json:"timezone"`
@@ -50,6 +53,8 @@ func parseSunBrowserAutoLocation(reader io.Reader, source string) (sunBrowserAut
 		IP          string          `json:"ip"`
 		CountryCode string          `json:"country_code"`
 		City        string          `json:"city"`
+		Latitude    *float64        `json:"latitude"`
+		Longitude   *float64        `json:"longitude"`
 		Success     *bool           `json:"success"`
 		Error       bool            `json:"error"`
 		Timezone    json.RawMessage `json:"timezone"`
@@ -80,7 +85,11 @@ func parseSunBrowserAutoLocation(reader io.Reader, source string) (sunBrowserAut
 		return sunBrowserAutoLocation{}, fmt.Errorf("尚未配置国家 %q 的默认语言", cc)
 	}
 	primary, _, _ := strings.Cut(lang, "-")
-	return sunBrowserAutoLocation{IP: raw.IP, IPFamily: sunBrowserIPFamily(raw.IP), CountryCode: cc, City: raw.City, Timezone: tz, Language: lang, AcceptLanguage: lang + "," + primary, Source: source, LanguageSource: "country-default", State: "pending", FingerprintPolicy: "native-unmapped"}, nil
+	location := sunBrowserAutoLocation{IP: raw.IP, IPFamily: sunBrowserIPFamily(raw.IP), CountryCode: cc, City: raw.City, Timezone: tz, Language: lang, AcceptLanguage: lang + "," + primary, Source: source, LanguageSource: "country-default", State: "pending", FingerprintPolicy: "native-unmapped"}
+	if raw.Latitude != nil && raw.Longitude != nil && !math.IsNaN(*raw.Latitude) && !math.IsNaN(*raw.Longitude) && math.Abs(*raw.Latitude) <= 90 && math.Abs(*raw.Longitude) <= 180 {
+		location.Latitude, location.Longitude = raw.Latitude, raw.Longitude
+	}
+	return location, nil
 }
 
 func sunBrowserIPFamily(raw string) string {

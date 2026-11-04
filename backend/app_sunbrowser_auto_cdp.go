@@ -18,6 +18,10 @@ type sunBrowserAutoLocale struct {
 	Language       string
 	AcceptLanguage string
 	Timezone       string
+	GeoEnabled     bool
+	GeoAvailable   bool
+	Latitude       float64
+	Longitude      float64
 }
 
 const sunAutoCommandTimeout = 5 * time.Second
@@ -579,6 +583,13 @@ func (c *sunAutoController) apply(s *sunAutoSession) error {
 	}
 	if page {
 		attempt("Target.setAutoAttach", sunAutoAttachParams())
+		if c.env.GeoEnabled {
+			params := map[string]any{}
+			if c.env.GeoAvailable {
+				params = map[string]any{"latitude": c.env.Latitude, "longitude": c.env.Longitude, "accuracy": 50000}
+			}
+			attempt("Emulation.setGeolocationOverride", params)
+		}
 	}
 	if c.env.Timezone != "" {
 		attempt("Emulation.setTimezoneOverride", map[string]any{"timezoneId": c.env.Timezone})

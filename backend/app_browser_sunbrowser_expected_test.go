@@ -72,3 +72,37 @@ func TestSunBrowserPageContextFiltersStaleExplicitArgs(t *testing.T) {
 		t.Fatalf("real mismatches would be hidden: %#v", ctx.Expected)
 	}
 }
+
+func TestSunBrowserPageContextShowsNativeCanvasRequest(t *testing.T) {
+	app, profile := sunBrowserExpectedFixture(t)
+	core, _ := app.browserMgr.GetCore(profile.CoreId)
+	plist := `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleShortVersionString</key><string>152.0.7977.54</string></dict></plist>`
+	if err := os.WriteFile(filepath.Join(core.CorePath, "Contents", "Info.plist"), []byte(plist), 0644); err != nil {
+		t.Fatal(err)
+	}
+	profile.Running = true
+	args, ok := sunCanvasAddLaunchArg([]string{"--user-data-dir=/tmp/test", "--remote-debugging-port=9222"}, profile.FingerprintArgs, profile.ProfileId, sunCanvasVerifiedVersion)
+	if !ok {
+		t.Fatal("canvas request not produced")
+	}
+	data, err := app.buildFingerprintCheckPageContextForExpectedArgsAndProfile(profile.ProfileId, args, profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ctx fingerprintCheckPageContext
+	if err = json.Unmarshal(data, &ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !ctx.CanvasNative {
+		t.Fatalf("missing native canvas request: %s", data)
+	}
+	found := false
+	for _, field := range ctx.UnsupportedFields {
+		if field == "canvasNoise" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("unmapped ImageData coverage should remain explicit: %s", data)
+	}
+}

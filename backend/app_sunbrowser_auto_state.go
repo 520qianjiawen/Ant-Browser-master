@@ -65,7 +65,7 @@ func (a *App) ensureRunningSunBrowserAutomaticRuntime(profile *BrowserProfile) e
 		return nil
 	}
 	state := a.readSunBrowserAutoState(profile.ProfileId)
-	if state == nil || state.DebugPort != profile.DebugPort || state.IPSelection == "" {
+	if state == nil || state.DebugPort != profile.DebugPort || state.IPSelection == "" || state.Latitude == nil || state.Longitude == nil {
 		args := a.fingerprintCheckExpectedArgsFromLockedProfile(profile)
 		proxy := browserArgValue(args, "--proxy-server")
 		if proxy == "" {
@@ -105,7 +105,13 @@ func (a *App) applySunBrowserAutomaticRuntime(profile *BrowserProfile, debugPort
 	if state == nil {
 		return nil
 	}
-	if err := ensureSunBrowserAutoLocale(debugPort, sunBrowserAutoLocale{Language: state.Language, AcceptLanguage: state.AcceptLanguage, Timezone: state.Timezone}); err != nil {
+	env := sunBrowserAutoLocale{Language: state.Language, AcceptLanguage: state.AcceptLanguage, Timezone: state.Timezone, GeoEnabled: true}
+	if state.Latitude != nil && state.Longitude != nil {
+		env.GeoAvailable = true
+		env.Latitude = *state.Latitude
+		env.Longitude = *state.Longitude
+	}
+	if err := ensureSunBrowserAutoLocale(debugPort, env); err != nil {
 		state.State = "failed"
 		_ = a.writeSunBrowserAutoState(profile.ProfileId, *state)
 		return fmt.Errorf("SunBrowser 自动时区语言设置失败: %w", err)

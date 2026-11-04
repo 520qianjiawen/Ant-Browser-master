@@ -238,6 +238,36 @@ func TestSunBrowserAutoLocalePersistent(t *testing.T) {
 	}
 }
 
+func TestSunBrowserLocationOverrideAndUnavailable(t *testing.T) {
+	for _, available := range []bool{true, false} {
+		t.Run(fmt.Sprintf("available_%v", available), func(t *testing.T) {
+			m := newSunMockBrowser(t, "")
+			env := sunBrowserAutoLocale{GeoEnabled: true, GeoAvailable: available, Latitude: 34.05, Longitude: -118.24}
+			if err := ensureSunBrowserAutoLocale(m.port, env); err != nil {
+				t.Fatal(err)
+			}
+			m.attach("geo-frame", "iframe", "frame")
+			m.waitResume(t, "geo-frame")
+			found := map[string]bool{}
+			for _, cmd := range m.snapshot() {
+				if cmd.Method != "Emulation.setGeolocationOverride" {
+					continue
+				}
+				found[cmd.Session] = true
+				if available && (cmd.Params["latitude"] != env.Latitude || cmd.Params["longitude"] != env.Longitude || cmd.Params["accuracy"] != float64(50000)) {
+					t.Fatalf("incorrect IP location: %#v", cmd.Params)
+				}
+				if !available && len(cmd.Params) != 0 {
+					t.Fatalf("missing location must report unavailable: %#v", cmd.Params)
+				}
+			}
+			if !found["initial"] || !found["geo-frame"] {
+				t.Fatalf("missing page or iframe override: %#v", found)
+			}
+		})
+	}
+}
+
 func assertSunSessionOrder(t *testing.T, commands []sunMockCommand, session string) {
 	t.Helper()
 	seen := map[string]bool{}
@@ -537,7 +567,7 @@ func TestSunBrowserAutoLocaleReal(t *testing.T) {
 	_ = listener.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
-	env := sunBrowserAutoLocale{Language: "fr-FR", AcceptLanguage: "fr-FR,fr", Timezone: "Europe/Paris"}
+	env := sunBrowserAutoLocale{Language: "fr-FR", AcceptLanguage: "fr-FR,fr", Timezone: "Europe/Paris", GeoEnabled: true, GeoAvailable: true, Latitude: 34.0522, Longitude: -118.2437}
 	launchArgs := []string{"--user-data-dir=" + t.TempDir(), fmt.Sprintf("--remote-debugging-port=%d", port), "--no-proxy-server", "--no-first-run", "--no-default-browser-check", "about:blank"}
 	var measured *sunBrowserWindowBounds
 	if proxy := os.Getenv("ANT_TEST_AUTO_PROXY"); proxy != "" {
@@ -545,7 +575,7 @@ func TestSunBrowserAutoLocaleReal(t *testing.T) {
 		if lookupErr != nil {
 			t.Fatal(lookupErr)
 		}
-		env = sunBrowserAutoLocale{Language: location.Language, AcceptLanguage: location.AcceptLanguage, Timezone: location.Timezone}
+		env.Language, env.AcceptLanguage, env.Timezone = location.Language, location.AcceptLanguage, location.Timezone
 		t.Logf("auto geo IP=%s country=%s city=%s language-source=%s", location.IP, location.CountryCode, location.City, location.LanguageSource)
 		if proxy != "direct://" {
 			for i, arg := range launchArgs {
@@ -778,6 +808,39 @@ func TestSunBrowserAutoLocaleReal(t *testing.T) {
 	}
 	waitURL(session, origin.URL+"/")
 	assertNative(session.id)
+	if _, err := c.call("", "Browser.grantPermissions", map[string]any{"origin": origin.URL, "permissions": []string{"geolocation"}}); err != nil {
+		t.Fatal(err)
+	}
+	geo, err := c.call(session.id, "Runtime.evaluate", map[string]any{"expression": `new Promise(resolve=>navigator.geolocation.getCurrentPosition(p=>resolve({lat:p.coords.latitude,lon:p.coords.longitude,accuracy:p.coords.accuracy}), e=>resolve({error:e.code})))`, "awaitPromise": true, "returnByValue": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var geoResult struct {
+		Result struct {
+			Value struct {
+				Lat      float64 `json:"lat"`
+				Lon      float64 `json:"lon"`
+				Accuracy float64 `json:"accuracy"`
+				Error    int     `json:"error"`
+			} `json:"value"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(geo, &geoResult); err != nil {
+		t.Fatal(err)
+	}
+	if p := geoResult.Result.Value; p.Error != 0 || p.Lat != env.Latitude || p.Lon != env.Longitude || p.Accuracy != 50000 {
+		t.Fatalf("geolocation override did not apply: %s", geo)
+	}
+	if _, err := c.call(session.id, "Emulation.setGeolocationOverride", map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	geo, err = c.call(session.id, "Runtime.evaluate", map[string]any{"expression": `new Promise(resolve=>navigator.geolocation.getCurrentPosition(p=>resolve({lat:p.coords.latitude}),e=>resolve({error:e.code})))`, "awaitPromise": true, "returnByValue": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(geo, &geoResult); err != nil || geoResult.Result.Value.Error == 0 {
+		t.Fatalf("missing IP coordinates must be unavailable: %s %v", geo, err)
+	}
 	path := filepath.Join(t.TempDir(), "ua.html")
 	if err = os.WriteFile(path, []byte("<!doctype html><title>native file test</title>"), 0600); err != nil {
 		t.Fatal(err)

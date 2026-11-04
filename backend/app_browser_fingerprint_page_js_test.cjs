@@ -107,6 +107,27 @@ test('rendered JSON report includes engine and a copied unsupported field list',
   assert.equal(exported.egressComparison.status, 'unavailable');
 });
 
+test('reports launch mode without presenting it as verified routing', () => {
+  const js = page();
+  js.latestContext = { proxy: { configured: true, launchMode: 'direct' } };
+  assert.match(js.renderProxyCheck(report()), /直连参数（路由未验证）/);
+  js.updateUILanguage = js.renderMeta = js.renderChangeComparison = () => {};
+  js.renderProxyCheck = js.renderFingerprintTable = () => '';
+  js.document = { getElementById: () => ({ innerHTML: '' }) };
+  const actual = report();
+  js.render(actual);
+  assert.equal(actual.launchProxyMode, 'direct');
+});
+
+test('native canvas request is reported as requested, not proven', () => {
+  const js = page();
+  const context = { engine: 'sunbrowser', canvasNative: true, unsupportedFields: ['hardwareConcurrency'], expected: {} };
+  const row = byName(js.buildFingerprintRows(report(), context))['Canvas Noise'];
+  assert.equal(row.status, 'unreadable');
+  assert.equal(row.expected, 'Native CanvasMark requested');
+  assert.match(row.reason, /getImageData was unchanged/);
+});
+
 const autoContext = (ip, extra = {}) => ({ autoEnvironment: { ip, ipFamily: ip.includes(':') ? 'ipv6' : 'ipv4', ipSelection: 'ipv4-first', ...extra } });
 
 test('egress comparison matches the same IPv4 without mutating actual IP or sources', () => {

@@ -229,11 +229,13 @@ type fingerprintCheckPageContext struct {
 	Engine            string                         `json:"engine,omitempty"`
 	UnsupportedFields []string                       `json:"unsupportedFields,omitempty"`
 	AutoEnvironment   *sunBrowserAutoLocation        `json:"autoEnvironment,omitempty"`
+	CanvasNative      bool                           `json:"canvasNative,omitempty"`
 }
 
 type fingerprintCheckProxyContext struct {
 	Configured bool   `json:"configured"`
 	Direct     bool   `json:"direct"`
+	LaunchMode string `json:"launchMode,omitempty"`
 	ProxyId    string `json:"proxyId,omitempty"`
 	ProxyName  string `json:"proxyName,omitempty"`
 	GroupName  string `json:"groupName,omitempty"`
@@ -275,9 +277,20 @@ func (a *App) buildFingerprintCheckPageContextForExpectedArgsAndProfile(profileI
 		Proxy:      a.buildFingerprintCheckProxyContext(profile),
 		UILanguage: fingerprintCheckPreferredUILanguage(expected),
 	}
+	context.Proxy.LaunchMode = "unknown"
+	if browserProfileMayHaveRuntimeLaunchArgs(profile) || (browserArgValue(expectedArgs, "--user-data-dir") != "" && browserArgValue(expectedArgs, "--remote-debugging-port") != "") {
+		context.Proxy.LaunchMode = fingerprintLaunchProxyMode(expectedArgs)
+	}
 	if a.isSunBrowserCore(coreID) {
 		context.Engine = "sunbrowser"
 		context.UnsupportedFields = sunBrowserUnsupportedFields()
+		core, coreOK := a.browserMgr.GetCore(coreID)
+		if !coreOK {
+			core, coreOK = a.browserMgr.GetDefaultCore()
+		}
+		if coreOK && (browserProfileMayHaveRuntimeLaunchArgs(profile) || (browserArgValue(expectedArgs, "--user-data-dir") != "" && browserArgValue(expectedArgs, "--remote-debugging-port") != "")) {
+			context.CanvasNative = sunCanvasWasRequested(expectedArgs, profileId, a.browserMgr.GetChromeVersion(core.CorePath))
+		}
 		context.AutoEnvironment = a.readSunBrowserAutoState(profileId)
 		context.Expected = sunBrowserAutomaticExpected(context.Expected, context.AutoEnvironment)
 		context.UILanguage = fingerprintCheckPreferredUILanguage(context.Expected)
@@ -287,6 +300,26 @@ func (a *App) buildFingerprintCheckPageContextForExpectedArgsAndProfile(profileI
 		return nil, fmt.Errorf("生成指纹检测上下文失败: %w", err)
 	}
 	return append(data, '\n'), nil
+}
+
+// A launch flag is evidence of the requested mode, not proof of actual routing.
+func fingerprintLaunchProxyMode(args []string) string {
+	direct, proxied := false, false
+	for _, arg := range args {
+		switch browserFingerprintArgKey(arg) {
+		case "--no-proxy-server":
+			direct = true
+		case "--proxy-server", "--proxy-pac-url", "--proxy-auto-detect":
+			proxied = true
+		}
+	}
+	if direct && !proxied {
+		return "direct"
+	}
+	if proxied && !direct {
+		return "proxy"
+	}
+	return "unknown"
 }
 
 func (a *App) buildFingerprintCheckProxyContext(profile *BrowserProfile) fingerprintCheckProxyContext {
@@ -670,6 +703,10 @@ var UI_ZH = {
   'ISP/Org': '运营商/组织',
   'Latency': '耗时',
   'Status': '状态',
+  'Launch proxy mode': '启动代理模式',
+  'Direct flag (routing unverified)': '直连参数（路由未验证）',
+  'Proxy flag (routing unverified)': '代理参数（路由未验证）',
+  'Unknown launch mode': '启动模式未知',
   'Direct': '直连',
   'Yes': '有',
   'No': '无',
@@ -718,6 +755,8 @@ var UI_ZH = {
   'No WebRTC expected value configured; showing actual collected value only': '未配置 WebRTC 期望，只展示实际采集值',
   'Standalone media device count parameter is ineffective in local Chrom-144 test and is not passed as runtime parameter': '媒体设备数量独立参数本地 Chrom-144 实测无效，未作为运行参数传递',
   'Canvas noise flag is passed as a launch parameter; page JS cannot read the flag directly. Check Canvas Hash stability for effect.': 'Canvas 噪声开关已作为启动参数下发；页面不能直接反读开关，效果看 Canvas Hash 是否稳定变化',
+  'Native CanvasMark requested': '已请求内核 Canvas 标记',
+  'Native CanvasMark is requested for image export; getImageData was unchanged in isolated tests': '已请求 Canvas 图片导出标记；隔离测试中的 getImageData 未变化',
   'Standalone audio noise parameter is ineffective in local Chrom-144 test; observe audio changes through Seed and Audio Hash': 'Audio 独立噪声参数本地 Chrom-144 实测无效；音频变化通过 Seed 和 Audio Hash 观察',
   'ClientRects noise flag is passed as a launch parameter; page JS cannot read the flag directly. Check ClientRects Hash stability for effect.': 'ClientRects 噪声开关已作为启动参数下发；页面不能直接反读开关，效果看 ClientRects Hash 是否稳定变化',
   'Canvas Hash is an effect observation for Canvas noise, not expected config': 'Canvas Hash 是 Canvas 噪声效果观测值，不是配置期望',
@@ -1626,6 +1665,15 @@ function buildFingerprintRows(report, context) {
     row.source = 'Engine Unsupported';
     row.reason = 'SunBrowser proprietary fingerprint configuration is not mapped; native hardware and rendering values are retained automatically, and Ant seed/noise switches are omitted';
   });
+  if (context && context.canvasNative) {
+    rows.forEach(function (row) {
+      if (row.name !== 'Canvas Noise') return;
+      row.expected = 'Native CanvasMark requested';
+      row.status = 'unreadable';
+      row.source = 'Config Expected';
+      row.reason = 'Native CanvasMark is requested for image export; getImageData was unchanged in isolated tests';
+    });
+  }
   return rows;
 }
 function shouldShowReason(status) {
@@ -1779,6 +1827,7 @@ function renderProxyCheck(report) {
   var comparisonText = uiText(comparisonLabels[comparison.status]) + ' — ' + uiText(comparison.reason);
   var configLines = [
     proxyStatusLine('Status', configText, configStatus),
+    proxyLine('Launch proxy mode', uiText(proxy.launchMode === 'direct' ? 'Direct flag (routing unverified)' : (proxy.launchMode === 'proxy' ? 'Proxy flag (routing unverified)' : 'Unknown launch mode'))),
     proxyLine('Name', proxy.proxyName || proxy.proxyId || '-'),
     proxyLine('Type', proxy.type || '-'),
     proxyLine('Endpoint', proxyEndpoint(proxy)),
@@ -1880,8 +1929,11 @@ function render(report) {
   var rows = buildFingerprintRows(report, latestContext);
   report.rows = rows;
   report.autoEnvironment = latestContext && latestContext.autoEnvironment ? latestContext.autoEnvironment : null;
+  report.launchProxyMode = latestContext && latestContext.proxy ? (latestContext.proxy.launchMode || 'unknown') : 'unknown';
   report.egressComparison = compareAutoEnvironmentEgress(latestContext, report.network && report.network.proxyInfo);
   report.engine = latestContext && latestContext.engine ? latestContext.engine : '';
+  report.canvasNativeRequested = !!(latestContext && latestContext.canvasNative);
+  report.canvasNativeCoverage = report.canvasNativeRequested ? 'image-export-only-observed' : '';
   report.unsupportedFields = latestContext && Array.isArray(latestContext.unsupportedFields) ? latestContext.unsupportedFields.slice() : [];
   renderMeta(report);
   document.getElementById('summary').innerHTML = '';
