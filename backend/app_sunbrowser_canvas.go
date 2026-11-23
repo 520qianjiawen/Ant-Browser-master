@@ -3,6 +3,7 @@ package backend
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"strings"
@@ -16,7 +17,7 @@ var sunCanvasEncoding = base64.NewEncoding("hTy1bfRJz4nLPcBCO7WtmNIaGvVeul5Zo8kq
 
 type sunExtendedPayload struct {
 	CanvasMark string `json:"CanvasMark,omitempty"`
-	AudioFp    string `json:"AudioFp,omitempty"`
+	AudioFp    int    `json:"AudioFp,omitempty"`
 }
 
 type sunNativeRequestedState struct {
@@ -29,9 +30,12 @@ func sunCanvasMarkForProfile(profileID string) string {
 	return hex.EncodeToString(sum[:16])
 }
 
-func sunAudioFpForProfile(profileID string) string {
+// sunAudioFpForProfile derives a stable positive integer seed (1..999999) per profile.
+// SunBrowser 152 parses AudioFp as a positive integer; keeping it within 1..999999
+// avoids large-integer overflow/clamping in the browser engine.
+func sunAudioFpForProfile(profileID string) int {
 	sum := sha256.Sum256([]byte("ant-sunbrowser-audio-v1:" + profileID))
-	return hex.EncodeToString(sum[:16])
+	return 1 + int(binary.BigEndian.Uint32(sum[:4])%999999)
 }
 
 func sunSpoofingDisabledFor(args []string, target string) bool {
@@ -104,7 +108,7 @@ func sunExtendedAddLaunchArg(args, rawArgs []string, profileID, version string) 
 	if sunAudioRequested(rawArgs) {
 		payload.AudioFp = sunAudioFpForProfile(profileID)
 	}
-	if payload.CanvasMark == "" && payload.AudioFp == "" {
+	if payload.CanvasMark == "" && payload.AudioFp == 0 {
 		return args, false
 	}
 	encoded, _ := json.Marshal(payload)

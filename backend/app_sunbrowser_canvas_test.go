@@ -51,11 +51,9 @@ func TestSunExtendedLaunchArgIsStableAndBoundToVerifiedVersion(t *testing.T) {
 	if _, exists := native["UserId"]; exists {
 		t.Fatal("native UserId must not be emitted in the browser toolbar")
 	}
-	if native["CanvasMark"] == "" || native["AudioFp"] == "" {
-		t.Fatalf("expected both CanvasMark and AudioFp in payload, got %#v", native)
-	}
-	if native["CanvasMark"] == native["AudioFp"] {
-		t.Fatalf("CanvasMark and AudioFp should use distinct derivations: %#v", native)
+	audioVal, okAudio := native["AudioFp"].(float64)
+	if native["CanvasMark"] == "" || !okAudio || audioVal <= 0 {
+		t.Fatalf("expected non-empty CanvasMark and positive numeric AudioFp in payload, got %#v", native)
 	}
 
 	again, _ := sunExtendedAddLaunchArg([]string{"--lang=en-US"}, raw, "profile-a", sunCanvasVerifiedVersion)
@@ -107,7 +105,7 @@ func TestSunAudioDefaultEnabledAndIndependentExclusion(t *testing.T) {
 	if _, hasCanvas := payload["CanvasMark"]; hasCanvas {
 		t.Fatalf("unexpected CanvasMark in audio-only payload: %#v", payload)
 	}
-	if payload["AudioFp"] != sunAudioFpForProfile("profile-a") {
+	if payload["AudioFp"] != float64(sunAudioFpForProfile("profile-a")) {
 		t.Fatalf("unexpected AudioFp: %#v", payload)
 	}
 
@@ -262,12 +260,13 @@ func TestSunAudioRealBrowser(t *testing.T) {
 	if exe == "" {
 		t.Skip("set ANT_TEST_SUNBROWSER to run isolated native integration")
 	}
-	expression := `(async()=>{const Ctor=window.OfflineAudioContext||window.webkitOfflineAudioContext;const ctx=new Ctor(1,44100,44100);const osc=ctx.createOscillator();const comp=ctx.createDynamicsCompressor();osc.type='triangle';osc.frequency.value=10000;comp.threshold.value=-50;comp.knee.value=40;comp.ratio.value=12;comp.attack.value=0;comp.release.value=0.25;osc.connect(comp);comp.connect(ctx.destination);osc.start(0);const buf=await ctx.startRendering();const data=buf.getChannelData(0).slice(4500,5000);return Array.from(data,v=>v.toFixed(6)).join(',')})()`
+	expression := `(async()=>{const Ctor=window.OfflineAudioContext||window.webkitOfflineAudioContext;const ctx=new Ctor(1,44100,44100);const osc=ctx.createOscillator();const comp=ctx.createDynamicsCompressor();osc.type='triangle';osc.frequency.value=10000;comp.threshold.value=-50;comp.knee.value=40;comp.ratio.value=12;comp.attack.value=0;comp.release.value=0.25;osc.connect(comp);comp.connect(ctx.destination);osc.start(0);const buf=await ctx.startRendering();const data=buf.getChannelData(0).slice(4500,5000);let h=2166136261;const s=Array.from(data,v=>v.toFixed(6)).join(',');for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h+=(h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24);}return ('00000000'+(h>>>0).toString(16)).slice(-8)})()`
 	native := runSunRealBrowserEval(t, exe, nil, "", expression)
 	a1 := runSunRealBrowserEval(t, exe, nil, "profile-a", expression)
 	a2 := runSunRealBrowserEval(t, exe, nil, "profile-a", expression)
 	b := runSunRealBrowserEval(t, exe, nil, "profile-b", expression)
+	t.Logf("seeds: a=%d b=%d | hashes: native=%s a1=%s a2=%s b=%s", sunAudioFpForProfile("profile-a"), sunAudioFpForProfile("profile-b"), native, a1, a2, b)
 	if a1 != a2 || a1 == native || a1 == b {
-		t.Fatal("audio marks did not give stable, distinct actual outputs")
+		t.Fatalf("audio marks did not give stable, distinct actual outputs (native=%s a1=%s a2=%s b=%s)", native, a1, a2, b)
 	}
 }
