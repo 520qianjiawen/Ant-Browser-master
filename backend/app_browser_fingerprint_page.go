@@ -230,6 +230,7 @@ type fingerprintCheckPageContext struct {
 	UnsupportedFields []string                       `json:"unsupportedFields,omitempty"`
 	AutoEnvironment   *sunBrowserAutoLocation        `json:"autoEnvironment,omitempty"`
 	CanvasNative      bool                           `json:"canvasNative,omitempty"`
+	AudioNative       bool                           `json:"audioNative,omitempty"`
 }
 
 type fingerprintCheckProxyContext struct {
@@ -289,7 +290,9 @@ func (a *App) buildFingerprintCheckPageContextForExpectedArgsAndProfile(profileI
 			core, coreOK = a.browserMgr.GetDefaultCore()
 		}
 		if coreOK && (browserProfileMayHaveRuntimeLaunchArgs(profile) || (browserArgValue(expectedArgs, "--user-data-dir") != "" && browserArgValue(expectedArgs, "--remote-debugging-port") != "")) {
-			context.CanvasNative = sunCanvasWasRequested(expectedArgs, profileId, a.browserMgr.GetChromeVersion(core.CorePath))
+			nativeState := sunExtendedWasRequested(expectedArgs, profileId, a.browserMgr.GetChromeVersion(core.CorePath))
+			context.CanvasNative = nativeState.Canvas
+			context.AudioNative = nativeState.Audio
 		}
 		context.AutoEnvironment = a.readSunBrowserAutoState(profileId)
 		context.Expected = sunBrowserAutomaticExpected(context.Expected, context.AutoEnvironment)
@@ -757,6 +760,8 @@ var UI_ZH = {
   'Canvas noise flag is passed as a launch parameter; page JS cannot read the flag directly. Check Canvas Hash stability for effect.': 'Canvas 噪声开关已作为启动参数下发；页面不能直接反读开关，效果看 Canvas Hash 是否稳定变化',
   'Native CanvasMark requested': '已请求内核 Canvas 标记',
   'Native CanvasMark is requested for image export; getImageData was unchanged in isolated tests': '已请求 Canvas 图片导出标记；隔离测试中的 getImageData 未变化',
+  'Native AudioFp requested': '已请求内核 AudioFp 标记',
+  'Native AudioFp is requested by default for this profile; check Audio Hash stability for effect': '已按实例 ID 默认请求原生 AudioFp 标记；效果请通过 Audio Hash 稳定性观测',
   'Standalone audio noise parameter is ineffective in local Chrom-144 test; observe audio changes through Seed and Audio Hash': 'Audio 独立噪声参数本地 Chrom-144 实测无效；音频变化通过 Seed 和 Audio Hash 观察',
   'ClientRects noise flag is passed as a launch parameter; page JS cannot read the flag directly. Check ClientRects Hash stability for effect.': 'ClientRects 噪声开关已作为启动参数下发；页面不能直接反读开关，效果看 ClientRects Hash 是否稳定变化',
   'Canvas Hash is an effect observation for Canvas noise, not expected config': 'Canvas Hash 是 Canvas 噪声效果观测值，不是配置期望',
@@ -1674,6 +1679,15 @@ function buildFingerprintRows(report, context) {
       row.reason = 'Native CanvasMark is requested for image export; getImageData was unchanged in isolated tests';
     });
   }
+  if (context && context.audioNative) {
+    rows.forEach(function (row) {
+      if (row.name !== 'Audio Noise') return;
+      row.expected = 'Native AudioFp requested';
+      row.status = 'unreadable';
+      row.source = 'Config Expected';
+      row.reason = 'Native AudioFp is requested by default for this profile; check Audio Hash stability for effect';
+    });
+  }
   return rows;
 }
 function shouldShowReason(status) {
@@ -1934,6 +1948,7 @@ function render(report) {
   report.engine = latestContext && latestContext.engine ? latestContext.engine : '';
   report.canvasNativeRequested = !!(latestContext && latestContext.canvasNative);
   report.canvasNativeCoverage = report.canvasNativeRequested ? 'image-export-only-observed' : '';
+  report.audioNativeRequested = !!(latestContext && latestContext.audioNative);
   report.unsupportedFields = latestContext && Array.isArray(latestContext.unsupportedFields) ? latestContext.unsupportedFields.slice() : [];
   renderMeta(report);
   document.getElementById('summary').innerHTML = '';

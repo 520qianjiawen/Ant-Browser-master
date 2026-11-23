@@ -81,9 +81,9 @@ func TestSunBrowserPageContextShowsNativeCanvasRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	profile.Running = true
-	args, ok := sunCanvasAddLaunchArg([]string{"--user-data-dir=/tmp/test", "--remote-debugging-port=9222"}, profile.FingerprintArgs, profile.ProfileId, sunCanvasVerifiedVersion)
+	args, ok := sunExtendedAddLaunchArg([]string{"--user-data-dir=/tmp/test", "--remote-debugging-port=9222"}, profile.FingerprintArgs, profile.ProfileId, sunCanvasVerifiedVersion)
 	if !ok {
-		t.Fatal("canvas request not produced")
+		t.Fatal("native extended request not produced")
 	}
 	data, err := app.buildFingerprintCheckPageContextForExpectedArgsAndProfile(profile.ProfileId, args, profile)
 	if err != nil {
@@ -93,8 +93,8 @@ func TestSunBrowserPageContextShowsNativeCanvasRequest(t *testing.T) {
 	if err = json.Unmarshal(data, &ctx); err != nil {
 		t.Fatal(err)
 	}
-	if !ctx.CanvasNative {
-		t.Fatalf("missing native canvas request: %s", data)
+	if !ctx.CanvasNative || !ctx.AudioNative {
+		t.Fatalf("missing native canvas/audio request: %s", data)
 	}
 	found := false
 	for _, field := range ctx.UnsupportedFields {
@@ -104,5 +104,21 @@ func TestSunBrowserPageContextShowsNativeCanvasRequest(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("unmapped ImageData coverage should remain explicit: %s", data)
+	}
+
+	audioDisabledArgs, ok := sunExtendedAddLaunchArg([]string{"--user-data-dir=/tmp/test", "--remote-debugging-port=9222"}, append(append([]string{}, profile.FingerprintArgs...), "--disable-spoofing=audio"), profile.ProfileId, sunCanvasVerifiedVersion)
+	if !ok {
+		t.Fatal("expected canvas request to remain when audio is disabled")
+	}
+	disabledData, err := app.buildFingerprintCheckPageContextForExpectedArgsAndProfile(profile.ProfileId, audioDisabledArgs, profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var disabledCtx fingerprintCheckPageContext
+	if err = json.Unmarshal(disabledData, &disabledCtx); err != nil {
+		t.Fatal(err)
+	}
+	if !disabledCtx.CanvasNative || disabledCtx.AudioNative {
+		t.Fatalf("expected canvas=true audio=false when audio disabled: %s", disabledData)
 	}
 }

@@ -128,6 +128,23 @@ test('native canvas request is reported as requested, not proven', () => {
   assert.match(row.reason, /getImageData was unchanged/);
 });
 
+test('native audio request is reported as requested and exported in JSON report', () => {
+  const js = page();
+  const context = { engine: 'sunbrowser', audioNative: true, unsupportedFields: ['audioNoise'], expected: {} };
+  const row = byName(js.buildFingerprintRows(report(), context))['Audio Noise'];
+  assert.equal(row.status, 'unreadable');
+  assert.equal(row.source, 'Config Expected');
+  assert.equal(row.expected, 'Native AudioFp requested');
+  assert.match(row.reason, /Audio Hash stability/);
+  js.latestContext = context;
+  js.updateUILanguage = js.renderMeta = js.renderChangeComparison = () => {};
+  js.renderProxyCheck = js.renderFingerprintTable = () => '';
+  js.document = { getElementById: () => ({ innerHTML: '' }) };
+  const actual = report();
+  js.render(actual);
+  assert.equal(actual.audioNativeRequested, true);
+});
+
 const autoContext = (ip, extra = {}) => ({ autoEnvironment: { ip, ipFamily: ip.includes(':') ? 'ipv6' : 'ipv4', ipSelection: 'ipv4-first', ...extra } });
 
 test('egress comparison matches the same IPv4 without mutating actual IP or sources', () => {

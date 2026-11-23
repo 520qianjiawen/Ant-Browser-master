@@ -635,7 +635,7 @@ func TestSunBrowserAutoLocaleReal(t *testing.T) {
 		t.Fatal(err)
 	}
 	if measured != nil {
-		if err = applySunBrowserAutoWindowRuntime(port, *measured); err != nil {
+		if _, err = applySunBrowserAutoWindowRuntime(port, *measured); err != nil {
 			t.Fatal(err)
 		}
 	}

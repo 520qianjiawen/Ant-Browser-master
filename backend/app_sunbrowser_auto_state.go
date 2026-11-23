@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"ant-chrome/backend/internal/logger"
 )
 
 func sunBrowserAutomaticExpected(expected BrowserFingerprintExpectedInfo, state *sunBrowserAutoLocation) BrowserFingerprintExpectedInfo {
@@ -117,10 +119,10 @@ func (a *App) applySunBrowserAutomaticRuntime(profile *BrowserProfile, debugPort
 		return fmt.Errorf("SunBrowser 自动时区语言设置失败: %w", err)
 	}
 	if state.Window != nil {
-		if err := applySunBrowserAutoWindowRuntime(debugPort, *state.Window); err != nil {
-			state.State = "failed"
-			_ = a.writeSunBrowserAutoState(profile.ProfileId, *state)
-			return fmt.Errorf("SunBrowser 自动窗口设置失败: %w", err)
+		if actualBounds, err := applySunBrowserAutoWindowRuntime(debugPort, *state.Window); err != nil {
+			logger.New("SunBrowser").Warn("自动窗口设置未完全生效", logger.F("error", err.Error()))
+		} else {
+			state.Window = &actualBounds
 		}
 	}
 	state.State = "applied"

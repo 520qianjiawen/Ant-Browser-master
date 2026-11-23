@@ -143,14 +143,36 @@ func (a *App) buildBrowserFingerprintCapabilityReport(profileId string, coreId s
 	if coreFound {
 		if exe, _, ok := browser.FindCoreExecutable(a.browserMgr.ResolveRelativePath(core.CorePath)); ok && browser.IsSunBrowserExecutable(exe) {
 			plan = sunBrowserFingerprintLaunchPlan(plan)
-			if chromeVersion == sunCanvasVerifiedVersion && sunCanvasRequested(fingerprintArgs) {
-				plan.warnings = append(plan.warnings, "SunBrowser 152 的 Canvas 图片导出标记将在实例启动时映射；隔离测试中的 getImageData 未变化，其他专有指纹项仍未映射。")
-				for i := range plan.rows {
-					key := browserFingerprintArgKey(plan.rows[i].InputArg)
-					if key == "--fingerprinting-canvas-image-data-noise" || key == "--fingerprint-canvas-noise" {
-						plan.rows[i].Status = "pending"
-						plan.rows[i].Action = "启动时映射"
-						plan.rows[i].Note = "隔离实例中图片导出变化、getImageData 未变化；实际效果需在启动后检测。"
+			if chromeVersion == sunCanvasVerifiedVersion {
+				if sunCanvasRequested(fingerprintArgs) {
+					plan.warnings = append(plan.warnings, "SunBrowser 152 的 Canvas 图片导出标记将在实例启动时映射；隔离测试中的 getImageData 未变化，其他专有指纹项仍未映射。")
+					for i := range plan.rows {
+						key := browserFingerprintArgKey(plan.rows[i].InputArg)
+						if key == "--fingerprinting-canvas-image-data-noise" || key == "--fingerprint-canvas-noise" {
+							plan.rows[i].Status = "pending"
+							plan.rows[i].Action = "启动时映射"
+							plan.rows[i].Note = "隔离实例中图片导出变化、getImageData 未变化；实际效果需在启动后检测。"
+						}
+					}
+				}
+				if sunAudioRequested(fingerprintArgs) {
+					plan.warnings = append(plan.warnings, "SunBrowser 152 的 AudioFp 标记将在实例启动时按实例 ID 默认映射（可通过 --disable-spoofing=audio 关闭）；实际效果需在启动后通过 Audio Hash 观测。")
+					matchedAudioRow := false
+					for i := range plan.rows {
+						if browserFingerprintArgKey(plan.rows[i].InputArg) == "--fingerprint-audio-noise" {
+							plan.rows[i].Status = "pending"
+							plan.rows[i].Action = "启动时映射"
+							plan.rows[i].Note = "启动时按实例 ID 映射原生 AudioFp；实际效果需在启动后通过 Audio Hash 观测。"
+							matchedAudioRow = true
+						}
+					}
+					if !matchedAudioRow {
+						plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
+							Capability: "Audio",
+							Status:     "injected",
+							Action:     "启动时默认映射",
+							Note:       "未配置 --disable-spoofing=audio 时，启动时按实例 ID 默认映射原生 AudioFp；实际效果需在启动后通过 Audio Hash 观测。",
+						})
 					}
 				}
 			}
