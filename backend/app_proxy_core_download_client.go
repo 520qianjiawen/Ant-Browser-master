@@ -18,6 +18,11 @@ func (a *App) unifiedProxyCoreHTTPClient(timeout time.Duration, proxyConfig stri
 	if rawProxyConfig == "" || rawProxyConfig == "__direct__" || strings.EqualFold(rawProxyConfig, "direct://") {
 		return &http.Client{Timeout: timeout, Transport: proxyCoreDirectTransport()}, "\u76f4\u8fde", nil
 	}
+	if rawProxyConfig == "__system__" {
+		transport := proxyCoreDirectTransport()
+		transport.Proxy = http.ProxyFromEnvironment
+		return &http.Client{Timeout: timeout, Transport: transport}, "\u7cfb\u7edf\u4ee3\u7406", nil
+	}
 	if parsed, err := url.Parse(rawProxyConfig); err == nil && isBadLocalHTTPSProxy(parsed) {
 		return nil, "", fmt.Errorf("\u4e0b\u8f7d\u4ee3\u7406\u4e0d\u80fd\u586b %s\uff0c127.0.0.1:443 \u901a\u5e38\u4e0d\u662f\u672c\u673a\u4ee3\u7406\u7aef\u53e3\uff1b\u8bf7\u6539\u6210\u771f\u5b9e\u4ee3\u7406\u7aef\u53e3\uff0c\u5982 socks5://127.0.0.1:7890\uff0c\u6216\u7559\u7a7a\u76f4\u8fde", parsed.Host)
 	}

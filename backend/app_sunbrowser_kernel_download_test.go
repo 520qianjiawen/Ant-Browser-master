@@ -105,3 +105,14 @@ func TestSunBrowserKernelInfoMockServer(t *testing.T) {
 		t.Fatalf("status = %d", resp.StatusCode)
 	}
 }
+
+func TestUnifiedProxyCoreHTTPClientHandlesSystemProxy(t *testing.T) {
+	app := &App{}
+	client, mode, err := app.unifiedProxyCoreHTTPClient(5, "__system__")
+	if err != nil {
+		t.Fatalf("unifiedProxyCoreHTTPClient(__system__) returned error: %v", err)
+	}
+	if client == nil || mode != "系统代理" {
+		t.Fatalf("unexpected client/mode: client=%v mode=%q", client, mode)
+	}
+}

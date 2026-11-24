@@ -20,6 +20,27 @@ func TestSunBrowserDecodeWindowBounds(t *testing.T) {
 	}
 }
 
+func TestSunBrowserQueryVisibleFrameFallback(t *testing.T) {
+	want := sunBrowserWindowBounds{Left: 0, Top: 30, Width: 1920, Height: 980}
+	calledFallback := false
+	got, err := sunBrowserQueryVisibleFrameWithProbes(
+		func() (sunBrowserWindowBounds, error) { return sunBrowserWindowBounds{}, os.ErrNotExist },
+		func() (sunBrowserWindowBounds, error) { calledFallback = true; return want, nil },
+	)
+	if err != nil || !calledFallback || got != want {
+		t.Fatalf("fallback failed: got=%+v err=%v called=%v", got, err, calledFallback)
+	}
+
+	calledFallback = false
+	got, err = sunBrowserQueryVisibleFrameWithProbes(
+		func() (sunBrowserWindowBounds, error) { return want, nil },
+		func() (sunBrowserWindowBounds, error) { calledFallback = true; return sunBrowserWindowBounds{}, os.ErrInvalid },
+	)
+	if err != nil || calledFallback || got != want {
+		t.Fatalf("primary probe should short-circuit fallback: got=%+v err=%v called=%v", got, err, calledFallback)
+	}
+}
+
 // Opt-in diagnostic: no window is launched, no settings changed, and no UI
 // scripting/screenshot permission is used. The probe runs AppKit directly.
 // SUNBROWSER_INSPECT_BOUNDS=1 go test ./backend -run '^TestSunBrowserActualVisibleFrame$' -v -count=1
