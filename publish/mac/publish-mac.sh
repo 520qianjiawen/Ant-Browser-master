@@ -241,6 +241,12 @@ if [[ ! -d "$APP_MACOS_DIR" ]]; then
   exit 1
 fi
 
+MAC_ICON_SRC="$ROOT_DIR/build/darwin/iconfile.icns"
+if [[ -f "$MAC_ICON_SRC" ]]; then
+  mkdir -p "$APP_STAGE/Contents/Resources"
+  cp "$MAC_ICON_SRC" "$APP_STAGE/Contents/Resources/iconfile.icns"
+fi
+
 mkdir -p "$APP_MACOS_DIR/bin"
 cp "$XRAY_SRC" "$APP_MACOS_DIR/bin/xray"
 cp "$SINGBOX_SRC" "$APP_MACOS_DIR/bin/sing-box"
